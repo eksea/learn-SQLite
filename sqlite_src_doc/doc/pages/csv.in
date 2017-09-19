@@ -1,0 +1,99 @@
+<title>The CSV Virtual Table</title>
+<tcl>hd_keywords csv {CSV virtual table}</tcl>
+<fancy_format>
+
+<h1>Overview</h1>
+
+<p>
+The CSV virtual table reads
+[https://www.ietf.org/rfc/rfc4180.txt|RFC 4180] formatted comma-separated
+values, and returns that content as if it were rows and columns of an SQL
+table.
+</p>
+
+<p>
+The CSV virtual table is useful to applications that need to bulk-load
+large amounts of comma-separated value content.
+The CSV virtual table is also useful as a template source file for
+implementing other virtual tables.
+</p>
+
+
+<p>
+The CSV virtual table is not built into the SQLite amalgamation.
+It is available as a
+[https://www.sqlite.org/src/artifact?ci=trunk&filename=ext/misc/csv.c|separate source file]
+that can be compiled into a [loadable extension].
+Typical usage of the CSV virtual table from the
+[command-line shell] would be something like this:
+
+<codeblock>
+.load ./csv
+CREATE VIRTUAL TABLE temp.t1 USING csv(filename='thefile.csv');
+SELECT * FROM t1;
+</codeblock>
+
+<p>
+The first line of the script above causes the [command-line shell] to
+read and activate the run-time loadable extension for CSV.  For an
+application, the equivalent C-language API is
+[sqlite3_load_extension()].
+Observe that the filename extension (ex: ".dll" or ".so" or ".dylib") is
+omitted from the extension filename.  Omitting the filename extension is
+not required, but it helps in making the script cross-platform.  SQLite
+will automatically append the appropriate extension.
+
+<p>
+The second line above creates a virtual table named "t1" that reads
+the content of the file named in the argument.  The number and names of
+the columns is determined automatically by reading the first line of
+content.  Other options to the CSV virtual table provide the ability to
+take the CSV content from a string rather than a separate file, and give 
+the programmer more control over the number and names of the columns.
+The options are detailed below.  The CSV virtual table is usually
+created as a TEMP table so that it exists only for the current database
+connection and does not become a permanent part of the database schema.
+Note that there is no "CREATE TEMP VIRTUAL TABLE" command in SQLite.
+Instead, prepend the "temp." schema prefix to the name of the virtual
+table.
+
+<p>
+The third line of the example shows the virtual table being used, to read
+all content of the CSV file.  This is perhaps the simplest possible use
+of the virtual table.  The CSV virtual table can be used anywhere an ordinary
+virtual table can be used.  One can use the CSV virtual table inside subqueries,
+or [common table expressions] or add WHERE, GROUP BY, HAVING, ORDER BY,
+and LIMIT clauses as required.
+
+<h1>Recognized Arguments</h1>
+
+<p>
+The example above showed a single <b>filename='th3file.csv'</b> argument
+for the CSV virtual table.  But other arguments are also possible.
+
+<ul>
+<li><p><b>filename=</b><i>FILENAME</i>
+<p>The <b>filename=</b> argument specifies an external file from which
+CSV content is read.  Every CSV virtual table must have either a 
+<b>filename=</b> argument or a <b>data=</b> argument and not both.
+
+<li><p><b>data=</b><i>TEXT</i>
+<p>The <b>data=</b> argument specifies that <i>TEXT</i> is the literal
+content of the CSV file.
+
+<li><p><b>schema=</b><i>SCHEMA</i>
+<p> The <b>schema=</b> argument specifies a [CREATE TABLE] statement that
+the CSV virtual table passes to the [sqlite3_declare_vtab()] interface in
+order to define the number and names of the columns in the virtual table.
+If both the <b>schema=</b> and the <b>columns=</b> arguments are omitted,
+then the CSV virtual table reads the first row of the input content in order
+to determine the number of columns and names the columns <b>cNNN</b> where
+<b>NNN</b> values are consecutive integers.  It is not allowed to have
+both <b>schema=</b> and <b>columns=</b> arguments.
+
+<li><p><b>columns=</b><i>N</i>
+<p>The <b>columns=</b><i>N</i> argument causes the virtual table to have
+exactly <i>N</i> columns.  If the input data contains more columns than this,
+then the excess columns are ignored.  If the input data contains fewer columns,
+then extra columns are filled with NULL.
+</u>

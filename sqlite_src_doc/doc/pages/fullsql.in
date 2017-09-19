@@ -1,0 +1,60 @@
+<title>Full-Featured SQL</title>
+<tcl>hd_keywords {Full-featured SQL} {full-featured SQL}</tcl>
+
+<fancy_format>
+
+<p>
+Do not be misled by the "Lite" in the name.  SQLite has a full-featured
+SQL implementation, including:
+
+<ul>
+<li>[CREATE TABLE|Tables], [CREATE INDEX|indexes],
+    [CREATE TRIGGER|triggers], and [CREATE VIEW|views]
+    in unlimited quantity
+<li>Up to 32K columns in a table and unlimited rows
+<li>Multi-column indexes
+<li>Indexes can use [DESC] and [COLLATE]
+<li>[partial index|Partial indexes]
+<li>[Indexes On Expressions]
+<li>[Clustered indexes]
+<li>[covering index|Covering indexes]
+<li>[CHECK], [UNIQUE], [NOT NULL], and [FOREIGN KEY constraints].
+<li>ACID transactions using [BEGIN], [COMMIT], and [ROLLBACK]
+<li>Nested transactions using [SAVEPOINT], [RELEASE], and 
+    [ROLLBACK|ROLLBACK TO]
+<li>[Subqueries], including [correlated subqueries]
+<li>Up to 64-way joins
+<li>LEFT JOIN
+<li>DISTINCT, ORDER BY, GROUP BY, HAVING, LIMIT, and OFFSET
+<li>UNION, UNION ALL, INTERSECT, and EXCEPT
+<li>A rich library of [Core Functions|standard SQL functions]
+<li>[Aggregate Functions|Aggregate functions] including DISTINCT aggregates
+<li>[UPDATE], [DELETE], and [INSERT] (of course)
+<li>[WITH|Common table expressions] including
+    [recursive common table expressions]
+<li>[row value|Row values]
+<li>An advanced [query planner]
+<li>[FTS5|Full-text search]
+<li>[R-Trees|R-tree indexes]
+<li>[json1|JSON support]
+<li>The [IS operator]
+<li>[table-valued function|Table-valued functions]
+<li>[REPLACE|REPLACE INTO]
+<li>[VACUUM]
+<li>[REINDEX]
+<li>The [GLOB] operator
+<li>[hexadecimal integers|Hexadecimal integer literals]
+<li>The [ON CONFLICT] clause
+<li>The [INDEXED BY] clause
+<li>[virtual table|Virtual tables]
+<li>Multiple databases on the same [database connection] using
+    [ATTACH DATABASE]
+<li>The ability to add [application-defined SQL functions], including
+    aggregate and table-valued functions.
+<li>[sqlite3_create_collation|Application-defined collating functions]
+</ul>
+
+<p>
+There are many more features not listed above.
+SQLite may be small in size and have "Lite" in its name, but it is
+not lacking in capability.

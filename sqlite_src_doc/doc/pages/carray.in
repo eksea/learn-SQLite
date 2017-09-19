@@ -1,0 +1,54 @@
+<title>The Carray() Table-Valued Function</title>
+<tcl>hd_keywords carray {carray() table-valued function}</tcl>
+<fancy_format>
+
+<h1>Overview</h1>
+
+<p>Carray($PTR,$N) is a [table-valued function] with a single column (named
+"value") and zero or more rows.
+The "value" of each row in the carray() is taken from a C-language array
+that is $N elements long.  $PTR is a pointer to the beginning of the array.
+In this way, the carray() function provides a convenient mechanism to
+bind C-language arrays to SQL queries.
+
+<h1>Availability</h1>
+
+<p>The carray() function is not compiled into SQLite by default.
+It is available as a [loadable extension] in the
+[https://www.sqlite.org/src/artifact?ci=trunk&filename=ext/misc/carray.c|ext/misc/carray.c]
+source file.
+
+<h1>Details</h1>
+
+<p>The carray() function takes two or three arguments.
+The first argument is a pointer to an array.  Since pointer values cannot
+be specified directly in SQL, the first argument must be a [parameter] that
+is bound to a pointer value using the [sqlite3_bind_pointer()] interface
+using a pointer-type of "carray".
+The second argument is the number of elements in the array.  The optional
+third argument is a string that determines the datatype of the elements
+in the C-language array.  Allowed values for the third argument are:
+
+<ol>
+<li> 'int32'
+<li> 'int64'
+<li> 'double'
+<li> 'char*'
+</ol>
+
+<p>The default datatype is 'int32'.
+
+<p>The carray() function can be used in the FROM clause of a query.
+For example, to query two entries from the OBJ table using rowids
+taken from a C-language array at address $PTR.
+
+<codeblock>
+SELECT obj.* FROM obj, carray($PTR, 10) AS x
+ WHERE obj.rowid=x.value;
+</codeblock>
+
+<p>This query gives the same result:
+
+<codeblock>
+SELECT * FROM obj WHERE rowid IN carray($PTR, 10);
+</codeblock>

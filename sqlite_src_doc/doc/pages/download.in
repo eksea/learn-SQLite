@@ -1,0 +1,459 @@
+<title>SQLite Download Page</title>
+
+<h2>SQLite Download Page</h2>
+<table width="100%" cellpadding="5" cellspacing="0">
+
+<tcl>
+hd_keywords {download page}
+set nDownload 0
+set BG {}
+unset -nocomplain href
+unset -nocomplain href_cnt
+set href_cnt 0
+set disable_more 0
+proc Product {pattern desc {frag {}} {disable_flag 0}} {
+  if {$::disable_more} return
+  regsub VVV $pattern {*} p3
+  regsub DATE $p3 {20*} p3
+  regsub YEAR $p3 {20[1234][0-9]} p3
+  regsub VVV $pattern {(3\d{6})} pattern
+  regsub DATE $pattern {(\d{12,17})} pattern
+  regsub YEAR $pattern {\d{4}} pattern
+  set p2 [string map {* .*} $pattern]
+  set flist [glob -nocomplain $p3]
+  foreach file [lsort -dict $flist] {
+    if {![regexp ^$p2\$ $file all version]} continue
+    if {[regexp {^(\d\d\d\d)(\d\d)(\d\d)(\d\d)(\d\d)$} $version \
+           all year month day hour min]} {
+      set version "$year-$month-$day $hour:$min UTC"
+    } elseif {[regexp {^3(\d\d)(\d\d)(\d\d)$} $version \
+           all major minor patch]} {
+      scan $major %d m1
+      scan $minor %d m2
+      scan $patch %d m3
+      set version 3.$m1.$m2
+      if {$patch>0} {
+        append version .$m3
+      }
+    }
+    set size [file size $file]
+    set sha1sum [lindex [exec sha1sum $file] 0]
+    set units bytes
+    if {$size>1024*1024} {
+      set size [format %.2f [expr {$size/(1024.0*1024.0)}]]
+      set units MiB
+    } elseif {$size>1024} {
+      set size [format %.2f [expr {$size/(1024.0)}]]
+      set units KiB
+    }
+    global pending_heading pending_tag BG
+    if {$BG!=""} {
+      set tr "<tr bgcolor=\"$BG\">"
+    } else {
+      set tr "<tr>"
+    }
+    if {$pending_heading!=""} {
+      if {$pending_tag!=""} {
+        set tg "<a name=\"$pending_tag\"></a>"
+        set pending_tag {}
+      } else {
+        set tg ""
+      }
+      hd_puts "$tr<td colspan=\"4\">$tg<b>$pending_heading</b></td></tr>\n"
+      set pending_heading {}
+    }
+    hd_puts "$tr<td width=\"10\"></td>"
+    hd_puts "<td valign=\"top\" align=\"right\">"
+    if {$frag!=""} {
+      eval hd_fragment $frag
+      set frag {}
+    }
+    global href href_cnt
+    incr href_cnt
+    set href(a$href_cnt) $file
+    hd_puts "<a id='a$href_cnt' href='hp1.html'>[file tail $file]</a><br>($size $units)</td>\n"
+    hd_puts "<td width=\"5\"></td>"
+    regsub -all VERSION $desc $version d2
+    hd_puts "\n<td valign=\"top\">"
+    hd_resolve [string trim $d2]
+    hd_puts "<br>(sha1: $sha1sum)</td></tr>\n"
+    incr ::nDownload
+    if {$disable_flag} {
+      set ::disable_more 1
+    }
+  }
+  if {$frag!=""} {
+    eval hd_keywords [lrange $frag 1 end]
+  }
+}
+cd $::DEST
+
+proc Heading {title {tag {}} {bgcolor {}}} {
+  set ::pending_heading $title
+  set ::pending_tag $tag
+  set ::BG $bgcolor
+  set ::disable_more 0
+  # hd_puts "<tr><td colspan=4><big><b>$title</b></big></td></tr>"
+}
+
+set Caution #fff1c8
+
+Heading {Pre-release Snapshots} {} $Caution
+
+
+Product {snapshot/sqlite-snapshot-DATE.tar.gz} {
+  The [amalgamation] source code, the [command-line shell] source code,
+  configure/make scripts for unix, and a Makefile.msc for Windows. See the
+  [https://www.sqlite.org/draft/releaselog/current.html|change log] for
+  more information.
+}
+Product {snapshot/sqlite-amalgamation-DATE.zip} {
+  The [amalgamation]: complete source code a single "sqlite3.c" file.
+}
+#  The [amalgamation] as of VERSION.
+#  See the <a href="http://www.sqlite.org/draft/releaselog/current.html">pending
+#  change log</a> for details.
+Product {snapshot/sqlite-amalgamation32k-DATE.zip} {
+  The [amalgamation] split into 6 separate source files each with less
+  than 32767 lines of code.
+}
+#  See the <a href="http://www.sqlite.org/draft/releaselog/current.html">pending
+#  change log</a> for details.
+#Product {snapshot/sqlite-tea-DATE.zip} {
+#  This is a snapshot (as of VERSION) of the current SQLite code under 
+#  development, packaged and ready to build using the
+#  <a href="http://www.tcl-lang.org/doc/tea/">Tcl Extension Architecture (TEA)</a>.
+#  Use this snapshot for testing only.  This is not a release.
+#}
+Product {snapshot/sqlite-uap-DATE.vsix} {
+  VSIX package for Universal Windows Platform development using Visual Studio 2015 CTP.
+}
+Product {snapshot/sqlite-uwp-DATE.vsix} {
+  VSIX package for Universal Windows Platform development using Visual Studio 2015 CTP.
+}
+
+Heading {Pre-release Windows DLLs} {} $Caution
+
+Product snapshot/sqlite-dll-win32-x86-DATE.zip {
+  A 32-bit Windows DLL as of VERSION.
+  See the
+  <a href="http://www.sqlite.org/draft/releaselog/current.html">pending change log</a>
+  for details.
+}
+Product snapshot/sqlite-dll-win64-x64-DATE.zip {
+  A 64-bit Windows DLL as of VERSION.
+  See the
+  <a href="http://www.sqlite.org/draft/releaselog/current.html">pending change log</a>
+  for details.
+}
+
+Product {snapshot/sqlite-shell-win32-x86-DATE.zip} {
+  This is a snapshot (as of VERSION) build of the 
+  [CLI | sqlite3.exe command-line shell]
+  shell program for 32-bit windows.
+}
+Product {snapshot/sqlite-shell-win64-x64-DATE.zip} {
+  This is a snapshot (as of VERSION) build of the 
+  [CLI  | sqlite3.exe command-line shell]
+  shell program for 64-bit windows.
+}
+
+Product {snapshot/sqlite-winrt81-DATE.vsix} {
+  This is a snapshot (as of VERSION) for
+  a complete VSIX package with an extension SDK and all other components
+  needed to use SQLite for WinRT 8.1 application development with Visual Studio
+  2013.  This is not a release.
+}
+
+
+Heading {Source Code}
+
+Product {YEAR/sqlite-amalgamation-VVV.zip} {
+  C source code as an [amalgamation], version VERSION.
+}
+
+Product {YEAR/sqlite-amalgamation32k-VVV.zip} {
+  C source code as the [split amalgamation], version VERSION.
+}
+
+Product {YEAR/sqlite-autoconf-VVV.tar.gz} {
+  C source code as an [amalgamation].  Also includes a "configure" script
+  and [http://www.tcl-lang.org/doc/tea/|TEA] makefiles for the [TCL Interface].
+} {amalgtarball {amalgamation tarball}}
+
+
+Product {YEAR/sqlite-tea-VVV.tar.gz} {
+  A tarball of the [amalgamation] together with a
+  <a href="http://www.tcl-lang.org/doc/tea/">Tcl Extension
+  Architecture (TEA)</a>
+  compatible configure script and makefile.
+} {teatarball {TEA tarball}}
+
+Heading {Documentation} docco
+
+Product {YEAR/sqlite-doc-VVV.zip} {
+  Documentation as a bundle of static HTML files.
+}
+
+Heading {Precompiled Binaries for Android} android
+
+Product {YEAR/sqlite-android-VVV.aar} {
+  A precompiled Android library containing the core SQLite together
+  with appropriate Java bindings, ready to drop into any Android 
+  Studio project.
+}
+
+Heading {Precompiled Binaries for Linux} linux
+
+Product YEAR/sqlite-tools-linux-x86-VVV.zip {
+  A bundle of command-line tools for managing SQLite database files,
+  including the [command-line shell] program, the [sqldiff] program, and
+  the [sqlite3_analyzer] program.
+} {} 1
+
+Product YEAR/sqlite-shell-linux-x86-VVV.zip {
+  The [command-line shell] program (version VERSION).
+}
+
+Product YEAR/sqlite-analyzer-linux-x86-VVV.zip {
+  A program to analyze how space is allocated inside an SQLite database
+  file (version VERSION).
+}
+
+Product YEAR/sqldiff-linux-x86-VVV.zip {
+  A program to display differences between two SQLite database files.
+  (version VERSION).
+}
+
+Heading {Precompiled Binaries for Mac OS X (x86)} mac
+
+Product YEAR/sqlite-tools-osx-x86-VVV.zip {
+  A bundle of command-line tools for managing SQLite database files,
+  including the [command-line shell] program, the [sqldiff] program, and
+  the [sqlite3_analyzer] program.
+} {} 1
+
+Product YEAR/sqlite-shell-osx-x86-VVV.zip {
+  The [command-line shell] program (version VERSION).
+}
+
+Product YEAR/sqlite-analyzer-osx-x86-VVV.zip {
+  A program to analyze how space is allocated inside an SQLite database
+  file (version VERSION).
+}
+
+Product YEAR/sqldiff-osx-x86-VVV.zip {
+  A program to display differences between two SQLite database files.
+  (version VERSION).
+}
+
+Heading {Precompiled Binaries for Windows} win32
+
+set start $nDownload
+
+Product YEAR/sqlite-dll-win32-x86-VVV.zip {
+  32-bit DLL (x86) for SQLite version VERSION.
+}
+
+Product YEAR/sqlite-dll-win64-x64-VVV.zip {
+  64-bit DLL (x64) for SQLite version VERSION.
+}
+
+Product YEAR/sqlite-tools-win32-x86-VVV.zip {
+  A bundle of command-line tools for managing SQLite database files,
+  including the [command-line shell] program, the [sqldiff.exe] program, and
+  the [sqlite3_analyzer.exe] program.
+} {} 1
+
+Product YEAR/sqlite-shell-win32-x86-VVV.zip {
+  The [command-line shell] program (version VERSION).
+}
+
+Product YEAR/sqlite-analyzer-win32-x86-VVV.zip {
+  A program to analyze how space is allocated inside an SQLite database
+  file (version VERSION).
+}
+
+Product YEAR/sqldiff-win32-x86-VVV.zip {
+  A program to display differences between two SQLite database files.
+  (version VERSION).
+}
+
+Heading {Universal Windows Platform}
+
+Product YEAR/sqlite-uap-VVV.vsix {
+  VSIX package for Universal Windows Platform development using Visual Studio 2015.
+}
+Product YEAR/sqlite-uwp-VVV.vsix {
+  VSIX package for Universal Windows Platform development using Visual Studio 2015.
+}
+
+Heading {Precompiled Binaries for Windows Phone 8} wp8
+
+
+Product YEAR/sqlite-wp80-winrt-VVV.vsix {
+  A complete VSIX package with an extension SDK and all other components
+  needed to use SQLite for application development with Visual Studio
+  2012 targeting Windows Phone 8.0.
+}
+
+Product YEAR/sqlite-wp80-winrt-DATE.vsix {
+  A complete VSIX package with an extension SDK and all other components
+  needed to use SQLite for application development with Visual Studio
+  2012 targeting Windows Phone 8.0.
+  This particular VSIX uses a snapshot of SQLite as of VERSION.
+}
+
+Product YEAR/sqlite-wp81-winrt-VVV.vsix {
+  A complete VSIX package with an extension SDK and all other components
+  needed to use SQLite for application development with Visual Studio
+  2013 targeting Windows Phone 8.1.
+}
+
+Product YEAR/sqlite-wp81-winrt-DATE.vsix {
+  A complete VSIX package with an extension SDK and all other components
+  needed to use SQLite for application development with Visual Studio
+  2013 targeting Windows Phone 8.1.
+  This particular VSIX uses a snapshot of SQLite as of VERSION.
+}
+
+Heading {Precompiled Binaries for Windows Runtime} winrt
+
+Product YEAR/sqlite-dll-winrt-x86-VVV.zip {
+  This ZIP archive contains a DLL for the SQLite library version VERSION for
+  32-bit x86 processors using the WinRT API.
+}
+
+Product YEAR/sqlite-dll-winrt-x64-VVV.zip {
+  This ZIP archive contains a DLL for the SQLite library version VERSION for
+  64-bit x64 processors using the WinRT API.
+}
+
+Product YEAR/sqlite-winrt-VVV.vsix {
+  A complete VSIX package with an extension SDK and all other components
+  needed to use SQLite for WinRT application development with Visual Studio
+  2012.
+}
+
+Product YEAR/sqlite-winrt80-VVV.vsix {
+  A complete VSIX package with an extension SDK and all other components
+  needed to use SQLite for WinRT 8.0 application development with Visual Studio
+  2012.
+}
+
+Product YEAR/sqlite-winrt81-VVV.vsix {
+  A complete VSIX package with an extension SDK and all other components
+  needed to use SQLite for WinRT 8.1 application development with Visual Studio
+  2013.
+}
+
+if {$nDownload>$start} {
+  hd_puts {<tr><td colspan="4"><b>Precompiled Binaries for .NET</b></td></tr>}
+  hd_puts "<tr><td width=\"10\"></td>"
+  hd_puts "<td valign=\"top\" align=\"right\">"
+  set url http://system.data.sqlite.org/index.html/doc/trunk/www/downloads.wiki
+  hd_puts "<a href=\"$url\">System.Data.SQLite</a></td>"
+  hd_puts "<td width=\"5\"></td>"
+  hd_puts "<td valign=\"top\">"
+  hd_puts "
+    Visit the <a href=\"http://system.data.sqlite.org/\">System.Data.SQLite.org
+    </a> website and especially the <a href=\"$url\">download page</a> for
+    source code and binaries of SQLite for .NET.</td></tr>
+  "
+}
+
+Heading {Alternative Source Code Formats} old
+
+Product {YEAR/sqlite-src-VVV.zip} {
+  Snapshop of the complete (raw) source tree for SQLite version VERSION.
+  See [How To Compile SQLite] for usage details.
+}
+
+Product {YEAR/sqlite-preprocessed-VVV.zip} {
+  Preprocessed C sources for SQLite version VERSION.
+}
+
+
+</tcl>
+</table>
+<hr>
+
+<tcl>hd_fragment encoding {build product names}</tcl>
+<h3>Build Product Names</h3>
+
+<p>
+Build products are named using one of the following templates:
+
+<ol>
+<li> <b>sqlite-</b>product<b>-</b>version<b>.zip</b>
+<li> <b>sqlite-</b>product<b>-</b>version<b>.tar.gz</b>
+<li> <b>sqlite-</b>product<b>-</b>os<b>-</b>cpu<b>-</b>version<b>.zip</b>
+<li> <b>sqlite-</b>product<b>-</b>date<b>.zip</b>
+</ol>
+
+<p>Templates (1) and (2) are used for source-code products.  Template (1) is
+used for generic source-code products and templates (2) is used for source-code
+products that are generally only useful on unix-like platforms.  Template (3)
+is used for precompiled binaries products.  Template (4) is used for
+unofficial pre-release "snapshots" of source code.
+
+<p>The <i>version</i> is encoded so that filenames sort in order of
+increasing version number when viewed using "ls".  For version 3.X.Y the
+filename encoding is 3XXYY00.  For branch version 3.X.Y.Z, the encoding is
+3XXYYZZ.
+
+<p>The <i>date</i> in template (4) is of the form: YYYYMMDDHHMM
+
+<a name="cvs"></a>
+<a name="fossil"></a>
+<tcl>hd_fragment srctree {SQLite source code repositories} {code repositories}</tcl>
+<h3>Source Code Repositories</h3>
+
+<p>
+The SQLite source code is maintained in three geographically-dispersed
+self-synchronizing
+[http://www.fossil-scm.org/ | Fossil] repositories that are
+available for anonymous read-only access.  Anyone can 
+view the repository contents and download historical versions
+of individual files or ZIP archives of historical check-ins.
+You can also [clone the entire repository].</p>
+
+<p>See the [How To Compile SQLite] page for additional information
+on how to use the raw SQLite source code.
+Note that a recent version of <a href="http://www.tcl-lang.org/">Tcl</a>
+is required in order to build from the repository sources. 
+The [amalgamation] source code files
+(the "sqlite3.c" and "sqlite3.h" files) build products and are
+not contained in raw source code tree.</p>
+
+<blockquote>
+<a href="https://www.sqlite.org/cgi/src">https://www.sqlite.org/cgi/src</a> (Dallas)<br>
+<a href="https://www2.sqlite.org/cgi/src">https://www2.sqlite.org/cgi/src</a> (Newark)<br>
+<a href="https://www3.sqlite.org/cgi/src">https://www3.sqlite.org/cgi/src</a> (San Francisco)<br>
+</blockquote>
+
+<p>The documentation is maintained in separate
+[http://www.fossil-scm.org/ | Fossil] repositories located
+at:</p>
+
+<blockquote>
+<a href="https://www.sqlite.org/cgi/docsrc">https://www.sqlite.org/cgi/docsrc</a> (Dallas)<br>
+<a href="https://www2.sqlite.org/cgi/docsrc">https://www2.sqlite.org/cgi/docsrc</a> (Newark)<br>
+<a href="https://www3.sqlite.org/cgi/docsrc">https://www3.sqlite.org/cgi/docsrc</a> (San Francisco)<br>
+</blockquote>
+<tcl>
+proc set_download_hyperlinks {} {
+  set script "<script type='text/JavaScript'>\n"
+  append script "/* <!\[CDATA\[ */\n"
+  append script "function adce4d016d6cd()\173\n"
+  append script "function d391(a,b){document.getElementById(a).href=b;}\n"
+  global href
+  foreach {i h} [array get href] {append script "d391('$i','$h');\n"}
+  append script "\175\n"
+  append script "setTimeout('adce4d016d6cd();',10);\n"
+  append script "/* \]\]> */\n"
+  append script "</script>\n"
+  hd_puts $script
+}
+set_download_hyperlinks
+</tcl>

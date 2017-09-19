@@ -1,0 +1,90 @@
+<title>SQLite Documentation</title>
+
+<h2 align="center">Documentation</h1>
+<style>
+.showhide {
+  margin-left: 0;
+  padding-left: 0;
+  list-style-type: none;
+}
+.showhide > li {
+  clear: both;
+  padding-left: 1em;
+  text-indent: -1em;
+}
+.showhide > li li {
+  padding-left: 0;
+  text-indent: 0;
+  padding-top: 1ex;
+  padding-bottom: 1ex;
+}
+.showhide ul {
+  display: none;
+  list-style-type: disc;
+}
+.showhide > li > a {
+  text-decoration: none;
+  color: black;
+  cursor: pointer;
+}
+.sh_mark {
+  float: left;
+  width: 1em;
+}
+.sh_link {
+  font-weight: bold;
+}
+</style>
+<script>
+function showhide(n){
+  var ul = document.getElementById("sh_sub_"+n)
+  var mk = document.getElementById("sh_mark_"+n)
+  if( ul.style.display!="block" ){
+    ul.style.display = "block";
+    mk.innerHTML = "&#x25bc;";
+  } else {
+    ul.style.display = "none";
+    mk.innerHTML = "&#x25ba;";
+  }
+}
+</script>
+<ul class="showhide">
+<tcl>
+hd_keywords {categorical listing of SQLite documents} {documents by category}
+set prevHead {}
+set lDoc {}
+set cnt 0
+proc doc {name url desc} {
+  global lDoc
+  lappend lDoc $name $url $desc
+}
+proc heading {text tag {caption {}}} {
+  end_heading
+  set ::prevHead $text
+}
+proc end_heading {} {
+  global lDoc cnt prevHead
+  if {$prevHead==""} return
+  incr cnt
+  hd_puts "<li><a onclick='showhide($cnt)'>"
+  hd_puts "<span class='sh_mark' id='sh_mark_$cnt'>"
+  if {$cnt==1} {
+    hd_puts "&#x25bc;</span> $prevHead</a>\n"
+    hd_putsnl "<ul id='sh_sub_$cnt' style='display:block;'>"
+  } else {
+    hd_puts "&#x25ba;</span> $prevHead</a>\n"
+    hd_putsnl "<ul id='sh_sub_$cnt'>"
+  }
+  foreach {name url desc} $lDoc {
+    hd_putsnl "<li><a class='sh_link' href='$url'>$name</a>"
+    if {$desc!=""} {
+      hd_putsnl "<span class='desktoponly'>&rarr; $desc</span>"
+    }
+  }
+  hd_putsnl </ul>
+  set lDoc {}
+}
+source [file join $::DOC pages docsdata.tcl]
+end_heading
+</tcl>
+</ul>

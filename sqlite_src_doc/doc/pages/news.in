@@ -1,0 +1,301 @@
+<title>Recent SQLite News</title>
+
+<h2>Recent News</h2>
+
+<tcl>
+proc newsitem {date title text} {
+  regsub -all {[^a-z0-9]} [string tolower $date] _ tag
+  hd_puts "<a name=\"$tag\"></a>"
+  if {![regsub -all {(Version) (\d+)\.(\d+)\.(\d+)\.(\d+)} $title \
+        {<a href="releaselog/\2_\3_\4_\5.html">\0</a>} title]} {
+    regsub -all {(Version) (\d+)\.(\d+)\.(\d+)} $title \
+      {<a href="releaselog/\2_\3_\4.html">\0</a>} title
+  }
+  hd_puts "<h3>$date - $title</h3>"
+  regsub -all "\n( *\n)+" $text "</p>\n\n<p>" txt
+  regsub -all {[Tt]icket #(\d+)} $txt \
+      {<a href="http://www.sqlite.org/cvstrac/tktview?tn=\1">\0</a>} txt
+  hd_resolve "<blockquote>$txt</blockquote>"
+  hd_puts "<hr width=\"50%\">"
+}
+
+newsitem {2017-08-24} {Release 3.20.1} {
+The [version 3.20.1] patch release changes two lines of code in
+the [sqlite3_result_pointer()] interface in order to fix a rare
+memory leak.  There are no other changes relative to [version 3.20.0].
+}
+
+newsitem {2017-08-01} {Release 3.20.0} {
+SQLite [version 3.20.0] is a regularly secheduled maintenance release
+of SQLite.
+<p>
+This release contains many minor enhancements, including:
+<ul>
+<li> Several new extensions
+<li> Enhancements to the "sqlite3.exe" command-line shell
+<li> Query planner enhancements
+<li> Miscellaneous code optimizations for improved performance
+<li> Fixes for some obscure bugs
+</ul>
+<p>
+See the [version 3.20.0|release notes] for more information.
+}
+
+newsitem {2017-06-17} {Release 3.18.2} {
+SQLite [version 3.18.2] is another backport of a bug fix found
+in SQLite [version 3.19.0], specifically the fix for
+ticket [https://sqlite.org/src/info/61fe9745|61fe9745].  Changes
+against [version 3.18.0] are minimal.
+}
+
+newsitem {2017-06-16} {Release 3.18.1} {
+SQLite [version 3.18.1] is a bug-fix release against [version 3.18.0]
+that fixes the [auto_vacuum] corruption bug described in ticket
+[https://sqlite.org/src/info/fda22108|fda22108].  This release was
+created for users who need that bug fix but do not yet want to upgrade 
+to [version 3.19.3].  
+}
+
+newsitem {2017-06-08} {Release 3.19.3} {
+[Version 3.19.3] is an emergency patch release to fix a 
+[https://sqlite.org/src/info/fda22108|bug] in 
+[auto_vacuum] logic that can lead to database corruption.
+The bug was introduced in [version 3.16.0] 
+([dateof:3.16.0]).  Though the bug is obscure and rarely
+encountered, upgrading is recommended for all users, and
+especially for users who turn on [auto_vacuum].
+}
+
+newsitem {2017-05-25} {Release 3.19.2} {
+Still more problems have been found in the LEFT JOIN
+[https://sqlite.org/optoverview.html#flattening|flattening] optimization
+that was added in the 3.19.0 release.  This patch release fixes all known
+issues with that optimization and adds new test cases.  Hopefully this
+will be the last patch.
+}
+
+newsitem {2017-05-24} {Release 3.19.1} {
+One of the new query planner optimizations in the 3.19.0 release contained
+bugs.  The 3.19.1 patch release fixes them.
+<p>
+Beginning with 3.19.0, subqueries and views on the right-hand side of
+a LEFT JOIN operator could sometimes be
+[https://sqlite.org/optoverview.html#flattening|flattened] into the
+main query.  The new optimization worked well for all of the test cases
+that the developers devised, and for millions of legacy test cases, but
+once 3.19.0 was released, users found some other cases where the optimization
+failed.  Ticket
+[https://sqlite.org/src/info/cad1ab4cb7b0fc344|cad1ab4cb7b0fc344] contains
+examples.
+<p>
+These problems exist only in 3.19.0.  Users of SQLite 3.19.0 should
+upgrade, but users of all prior versions of SQLite are safe.
+}
+
+newsitem {2017-05-22} {Release 3.19.0} {
+SQLite [version 3.19.0] is a regularly scheduled maintenance release.
+<p>
+The emphasis on this release is improvements to the query planner.
+There are also some obscure bug fixes.  There is no reason to upgrade
+unless you are having problems with a prior release.
+}
+
+newsitem {2017-03-30} {Release 3.18.0} {
+SQLite [version 3.18.0] is a regularly scheduled maintenance release.
+<p>
+This release features an initial implementation the 
+"[PRAGMA optimize]" command.  This command can now be used to cause
+[ANALYZE] to be run on an as-needed basis.  Applications should invoke
+"PRAGMA optimize" just before closing the [database connection].
+The "PRAGMA optimize" statement will likely be enhanced to do other
+kinds of automated database maintenance in future releases.
+<p>
+The [https://www.fossil-scm.org/|Fossil] version control system that is
+used to manage the SQLite project has been upgraded to use SHA3-256 hashes
+instead of SHA1.  Therefore, the version identifications for SQLite now
+show a 64-hex-digit SHA3-256 hash rather than the 40-hex-digit SHA1 hash.
+<p>
+See the [version 3.18.0|change log] for other enhancements and optimizations
+in this release.
+}
+
+newsitem {2017-02-13} {Release 3.17.0} {
+SQLite [version 3.17.0] is a regularly scheduled maintenance release.
+<p>
+Most of the changes in this release are performance optimizations.
+Optimizations to the [R-Tree extension] are especially noticeable.
+<p>
+In this release, the default size of the 
+[lookaside buffer] allocated for each database connection
+is increased from 64,000 to 120,000 bytes.  This provides improved
+performance on many common workloads in exchange for a small increase
+in memory usage.
+Applications that value a small memory footprint over raw speed
+can change the lookaside buffer size back to its old value (or to zero)
+using the [SQLITE_DEFAULT_LOOKASIDE] compile-time option, or the
+[SQLITE_CONFIG_LOOKASIDE|sqlite3_config(SQLITE_CONFIG_LOOKASIDE)]
+start-time setting, or the
+[SQLITE_DBCONFIG_LOOKASIDE|sqlite3_db_config(SQLITE_DBCONFIG_LOOKASIDE)]
+run-time setting.
+}
+
+newsitem {2017-01-06} {Release 3.16.2} {
+One of the performance optimizations added in 3.16.0 caused triggers
+and foreign keys to malfunction for the [REPLACE] statement on
+[WITHOUT ROWID] tables that lack secondary indexes.  This patch
+release fixes the problem.  See ticket 
+[https://www.sqlite.org/src/info/30027b613b4|30027b613b4] for details.
+}
+
+newsitem {2017-01-03} {Release 3.16.1} {
+SQLite [version 3.16.1] fixes a bug in the row-value logic for UPDATE
+statements inside of triggers.  The bug has been there since row-values
+were added by release 3.15.0, but was not discovered until just a few
+minutes after the 3.16.0 release was published, and so it was not fixed
+by 3.16.0.  This patch release is version 3.16.0 with the row-value bug fix.
+}
+
+newsitem {2017-01-02} {Release 3.16.0} {
+SQLite [version 3.16.0] is a regularly schedule maintenance release.
+
+<p>
+This release includes many [microoptimizations] that collectively reduce
+the CPU cycle count by about 9%,
+add there have been important enhancements to the [command-line shell].
+
+<p>Support for [PRAGMA functions] is added,
+so that many pragma statements can be used as part of a larger SQL query.
+This is considered an experimental feature.
+We do not anticipate any changes to the [PRAGMA function] interface, but
+will keep continue to call this interface "experimental" for a few release
+cycles in case unforeseen issues arise.
+
+<p>See the [version 3.16.0|change log] for other enhancements.
+}
+
+newsitem {2016-11-28} {Release 3.15.2} {
+SQLite [version 3.15.2] is a bug-fix patch release that fixes several minor
+issues in the 3.15.0 and 3.15.1 releases.
+}
+
+newsitem {2016-11-04} {Release 3.15.1} {
+SQLite [version 3.15.1] is a bug-fix patch release that fixes some minor
+issues in the 3.15.0 release.
+}
+
+newsitem {2016-10-14} {Release 3.15.0} {
+SQLite [version 3.15.0] is a regularly scheduled maintenance release.
+The key feature in this release is the added support for
+[row values].  There are also other enhancements and
+fixes for a number of obscure bugs.
+<p>
+The 3.15.0 release uses about 7% fewer CPU cycles than 3.14.2.
+Most of the improvement in this release
+is in the SQL parser, query planner, and
+byte-code generator (the front-end) corresponding
+to the [sqlite3_prepare_v2()] interface.  Overall,
+version 3.15.0 uses about half as much CPU time as
+version 3.8.1 ([dateof:3.8.1]).  These
+performance measurements are made using the "speedtest1.c"
+workload on x64 compiled with gcc and -Os. Performance
+improvements may vary with different platforms and
+workloads.
+}
+
+newsitem {2016-09-12} {Release 3.14.2} {
+SQLite [version 3.14.2] fixes several obscure bugs and adds 
+improved support for building SQLite using the STDCALL calling
+convention on 32-bit windows systems.  Upgrading from versions
+3.14 and 3.14.1 is optional.
+}
+
+newsitem {2016-08-11} {Release 3.14.1} {
+SQLite [version 3.14.1] adds a small patch to improve the performance
+of the pcache1TruncateUnsafe() routine for cases when the only a few
+pages on the end of the cache are being removed.  This causes COMMITs
+to run faster when there is a very large page cache.  Upgrading from
+version 3.14 is optional.
+}
+
+newsitem {2016-08-08} {Release 3.14} {
+SQLite [version 3.14] (the "&#960;" release)
+is a regularly scheduled maintenance
+release containing performance enhancements, new features, and fixes for
+obscure bugs.
+}
+
+newsitem {2016-05-18} {Release 3.13.0} {
+SQLite [version 3.13.0] is a regularly schedule maintenance release containing
+performance enhancements and fixes for obscure bugs.
+}
+
+newsitem {2016-04-18} {Release 3.12.2} {
+<p>Yikes!  The 3.12.0 and 3.12.1 releases contain a backwards compatibility bug!
+   Tables that declare a column with type <tt>"INTEGER" PRIMARY KEY</tt>
+   (where the datatype name INTEGER is quoted) generate an incompatible
+   database file.  The mistake came about because the developers have never
+   thought to put a typename in quotes before, and so there was no documentation 
+   of that capability nor any tests.  (There are tests now, though, of course.)
+   Instances of quoting the datatype name are probably infrequent in the wild,
+   so we do not expect the impact of this bug to be too severe.
+   Upgrading is still strongly recommended.
+<p>Fixes for three other minor issues were included in this patch release.
+   The other issues would have normally been deferred until the next scheduled
+   release, but since a patch release is being issued anyhow, they might as
+   well be included.
+}
+
+newsitem {2016-04-08} {Release 3.12.1} {
+<p>SQLite [version 3.12.1] is an emergency patch release to address a 
+   [https://www.sqlite.org/src/info/7f7f8026eda38|crash bug] that snuck
+   into [version 3.12.0].  Upgrading from version 3.12.0 is highly
+   recommended.
+<p>Another minor problem involving datatypes on [view] columns, and
+   a query planner deficiency are fixed at the same time.  These two
+   issues did not justify a new release on their own, but since a release
+   is being issued to deal with the crash bug, we included these other
+   fixes for good measure.
+}
+
+newsitem {2016-03-29} {Release 3.12.0} {
+<p>SQLite [version 3.12.0] is a regularly scheduled maintenance release.
+   A notable change in this release is an
+   [increase in the default page size] for newly created database files.
+   There are also various performance improvements.
+   See the [version 3.12.0|change log] for details.
+}
+
+newsitem {2016-03-03} {Release 3.11.1} {
+<p>SQLite [version 3.11.1] is a patch release that fixes problems in the
+   new [FTS5] extension and increases a default setting in the [spellfix1]
+   extension, and implements enhancements to some of the Windows makefiles.
+   The SQLite core is unchanged from 3.11.0. Upgrading is optional.
+}
+
+newsitem {2016-02-15} {Release 3.11.0} {
+<p>SQLite [version 3.11.0] is a regularly scheduled maintenance release.
+}
+
+newsitem {2016-01-20} {Release 3.10.2} {
+<p>Yikes!  An optimization attempt gone bad resulted in a 
+[https://www.sqlite.org/src/info/80369eddd5c94 | bug in the LIKE operator]
+which is fixed by this patch release.
+Three other minor but low-risk fixes are also included in the patch.
+}
+
+newsitem {2016-01-14} {Release 3.10.1} {
+<p>SQLite [version 3.10.1] is a bug-fix release primarily targeting the
+fix for the query planner bug
+[https://www.sqlite.org/src/info/cb3aa0641d9a4|cb3aa0641d9a4] discovered by
+Mapscape.  Also included is a minor API enhancement requested by
+the Firefox developers at Mozilla.  The differences from version 
+3.10.0 are minimal.
+}
+
+newsitem {2016-01-06} {Release 3.10.0} {
+<p>SQLite [version 3.10.0] is a regularly scheduled maintenance release.
+}
+
+</tcl>
+
+<a href="oldnews.html">Old news...</a>

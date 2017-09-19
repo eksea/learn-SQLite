@@ -1,0 +1,172 @@
+<title>Well-Known Users Of SQLite</title>
+
+<h2>Well-Known Users of SQLite</h2>
+
+<p>
+SQLite is used by literally millions of applications
+with literally billions and billions of deployments.
+SQLite is the [most widely deployed] database engine in the
+world today.
+
+<p>
+A few of the better-known users of SQLite are shown below
+in alphabetical order.
+This is not a complete list.
+SQLite is in the 
+<a href="copyright.html">public domain</a> and so most
+developers use it in their projects without ever telling us.
+</p>
+
+<tcl>
+set lx {}
+proc famous_user {sortkey link logo verbage} {
+  lappend ::lx [list $sortkey $link $logo $verbage]
+}
+famous_user adobe http://www.adobe.com/ adobe.gif {
+  [http://www.adobe.com/ | Adobe] uses SQLite as the 
+  <a href="whentouse.html#appfileformat">application 
+  file format</a> for their 
+  [http://www.adobe.com/products/photoshoplightroom/ | Photoshop Lightroom]
+  product.
+  SQLite is also a standard part of the
+  [http://labs.adobe.com/technologies/air/ | Adobe Integrated Runtime (AIR)].
+  It is reported that 
+  [http://www.adobe.com/products/acrobat/readstep2.html | Acrobat Reader]
+  also uses SQLite.
+}
+famous_user airbus http://www.airbus.com/ airbus2.gif {
+  [http://www.airbus.com/ | Airbus] confirms that SQLite is being
+  used in the flight software for the 
+  [http://www.aircraft.airbus.com/aircraftfamilies/passengeraircraft/a350xwbfamily/ | A350 XWB] family
+  of aircraft.
+}
+famous_user apple http://www.apple.com/ apple.gif {
+  [http://www.apple.com/ | Apple] uses SQLite in many (most?) of the
+  native applications running on Mac OS-X desktops and servers and
+  on iOS devices such as iPhones and iPods.  SQLite is also used in
+  [http://www.apple.com/itunes/ | iTunes], even on non-Apple hardware.
+}
+famous_user bentley http://www.bentley.com/ bentley.gif {
+  [http://www.bentley.com/ | Bentley Systems] uses SQLite as the
+  [affshort | application file format] for their
+  [https://www.bentley.com/en/products/product-line/modeling-and-visualization-software/microstation | Microstation]
+  CAD/CAM product.
+}
+famous_user bosch http://oss.bosch-cm.com/index.html bosch_logo1.gif {
+  [http://www.bosch.com/ | Bosch] uses SQLite in the multimedia
+  systems install on GM, Nissan, and Suzuki automobiles.
+  (<a href="http://oss.bosch-cm.com/index.html">link</a>)
+}
+famous_user dropbox http://www.dropbox.com/ dropbox.gif {
+  The increasingly popular [http://www.dropbox.com/ | Dropbox] file
+  archiving and synchronization service is reported to use SQLite as
+  the primary data store on the client side.
+}
+famous_user expensify https://www.expensify.com/ expensify.png {
+  [https://www.expensify.com/ | Expensify] uses SQLite as a server-side
+  database engine for their enterprise-scale expense reporting software.
+}
+famous_user facebook https://www.facebook.com/ fb.gif {
+  [https://www.facebook.com/ | Facebook] uses SQLite as the SQL database
+  engine in their 
+  [https://code.facebook.com/projects/658950180885092 | osquery] product.
+}
+famous_user mozilla http://www.mozilla.com/ firefox.gif {
+  SQLite is the primary meta-data storage format for
+  the [http://www.mozilla.com/ | Firefox Web Browser] and the
+  [http://www.mozilla.com/thunderbird/ | Thunderbird Email Reader] from
+  Mozilla.
+}
+famous_user flame http://en.wikipedia.org/wiki/Flame_%28malware%29 flame.gif {
+  <a href="http://en.wikipedia.org/wiki/Flame_%28malware%29">Flame</a>
+  is a malware spy program that is reported to make heavy use of SQLite.
+}
+famous_user ge http://www.ge.com/ ge.gif {
+  We believe that [http://www.ge.com/ | General Electric]
+  uses SQLite in some product or 
+  another because they written to the SQLite developers at 
+  least four separate times requesting 
+  the US Export Control Number for SQLite. So presumably GE is using
+  SQLite in something that they are exporting. But nobody
+  (outside of GE) seems to know what that might be.
+}
+famous_user google http://www.google.com/ google.gif {
+  uses SQLite in their 
+  in the [http://code.google.com/android/ | Android] cell-phone 
+  operating system, and in the 
+  [http://www.google.com/chrome | Chrome Web Browser].
+}
+famous_user intuit http://www.intuit.com/ intuit.gif {
+  [http://www.intuit.com/ | Intuit] apparently uses SQLite in 
+  [http://www.quickbooks.com/ | QuickBooks] and in
+  [http://turbotax.intuit.com/ | TurboTax] to judge from some error
+  reports from users seen 
+  [http://community.intuit.com/posts/database-error-sqlite-error-code1 | here] and
+  [https://ttlc.intuit.com/post/show_full/cJf8mIhC4r4jjracfArQzM/when-i-try-to-update-turbotax-i-receive-an-unexpected-error-message | here].
+}
+famous_user mcafee http://www.mcafee.com/ mcaffee.gif {
+  [http://www.mcafee.com/ | McAfee] uses SQLite in its antivirus 
+  programs.  
+  Mentioned [http://www.mail-archive.com/sqlite-users@sqlite.org/msg16931.html | here] and implied 
+  [http://forums.mcafeehelp.com/showthread.php?t=173519 | here].
+}
+famous_user microsoft http://www.microsoft.com/ microsoft.gif {
+  [http://www.microsoft.com/ | Microsoft] uses SQLite as a core component
+  of Windows 10, and in other products.
+}
+famous_user nds http://www.nds-association.org/ nds.png {
+  [http://www.nds-association.org/ | The Navigation Data Standard] uses 
+  SQLite as its [affshort | application file format].
+}
+famous_user php http://www.php.net/ php.gif {
+  The popular [http://www.php.net/ | PHP]
+  programming language comes with both SQLite2 and SQLite3 built in.
+}
+famous_user python http://www.python.org/ python.gif {
+  All [http://docs.python.org/lib/module-sqlite3.html | Python]
+  distributions since Python 2.5 include SQLite.
+}
+famous_user xojo http://www.xojo.com/ xojo.png {
+  SQLite comes bundled with the [http://www.xojo.com/|Xojo]
+  programming environment
+  (formerly [http://www.realbasic.com/ | REALbasic])
+}
+famous_user rpm https://en.wikipedia.org/wiki/RPM_Package_Manager rpm_logo.png {
+  The [https://en.wikipedia.org/wiki/RPM_Package_Manager | RedHat Package Manager (RPM)]
+  uses SQLite to track its state.
+}
+famous_user skype http://www.skype.com/ skype.gif {
+  There are 
+  [http://www.mail-archive.com/sqlite-users%40sqlite.org/msg27326.html | multiple]
+  [http://www.mail-archive.com/sqlite-users%40sqlite.org/msg27332.html|sightings]
+  of SQLite in the Skype client for Mac OS X and Windows.
+}
+famous_user tcl http://www.tcl-lang.org/ tcl.gif {
+  The Tcl/Tk programming language now comes with SQLite built-in.  SQLite works
+  particularly well with Tcl since SQLite was originally a Tcl extension that
+  subsequently "escaped" into the wild.
+}
+
+hd_putsnl "<div class='mobileonly'>"
+foreach entry [lsort -index 0 $lx] {
+  foreach {key url logo verbage} $entry break
+  hd_putsnl "<hr class='xhr'>"
+  hd_putsnl "<center><a href='$url' border=0>"
+  hd_putsnl "<img src='images/foreignlogos/$logo' width=215></a></center>"
+  hd_resolve "<p>$verbage</p>\n\n"
+}
+hd_putsnl </div>
+hd_putsnl "<div class='desktoponly'>"
+hd_putsnl "<table border=0 cellpadding=15>"
+foreach entry [lsort -index 0 $lx] {
+  foreach {key url logo verbage} $entry break
+  hd_putsnl "<tr><td valign='top'>"
+  hd_putsnl "<a href='$url' border=0>"
+  hd_putsnl "<img src='images/foreignlogos/$logo' width=215></a>"
+  hd_putsnl "</td><td valign='top'>"
+  hd_resolve "$verbage"
+  hd_putsnl "</td></tr>"
+}
+hd_putsnl "</table>"
+hd_putsnl "</div>"
+</tcl>

@@ -1,0 +1,240 @@
+<title>Architecture of SQLite</title>
+<fancy_format>
+
+<tcl>
+proc render_arch {html} {
+  regsub -all <file> $html <b> html
+  regsub -all </file> $html </b> html
+  hd_resolve $html
+}
+render_arch {
+<h1>Introduction</h1>
+
+
+<p>This document describes the architecture of the SQLite library.
+The information here is useful to those who want to understand or
+modify the inner workings of SQLite.
+</p>
+
+<div class="rightsidebar border2px imgcontainer">
+<img src="images/arch2.gif"></img>
+</div>
+
+<p>
+A nearby diagram shows the main components of SQLite
+and how they interoperate.  The text below
+explains the roles of the various components.
+</p>
+
+<h1>Overview</h1>
+
+<p>SQLite works by compiling SQL text into [bytecode], then running
+that bytecode using a virtual machine.
+
+<p>The [sqlite3_prepare_v2()] and related interfaces act as a compiler
+for converting SQL text into bytecode.  The [sqlite3_stmt] object is
+a container for a single bytecode program using to implement a single
+SQL statement.  The [sqlite3_step()] interface passes a bytecode program
+into the virtual machine, and runs the program until it either completes,
+or forms a row of result to be returned, or hits a fatal error, or is
+[sqlite3_interrupt()|interrupted].
+
+<h1>Interface</h1>
+
+<p>Much of the [C-language Interface] is found in source
+files <file>main.c</file>, <file>legacy.c</file>, and
+<file>vdbeapi.c</file>
+though some routines are
+scattered about in other files where they can have access to data 
+structures with file scope.  
+The [sqlite3_get_table()] routine is implemented in <file>table.c</file>.
+The [sqlite3_mprintf()] routine is found in <file>printf.c</file>.
+The [sqlite3_complete()] interface is in <file>tokenize.c</file>.
+The [TCL Interface] is implemented by <file>tclsqlite.c</file>.
+
+<p>To avoid name collisions, all external
+symbols in the SQLite library begin with the prefix <b>sqlite3</b>.
+Those symbols that are intended for external use (in other words,
+those symbols which form the API for SQLite) add an underscore, and
+thus begin with <b>sqlite3_</b>.  Extension APIs sometimes add the
+extension name prior to the underscore; for example:
+<b>sqlite3rbu_</b> or <b>sqlite3session_</b>.</p>
+
+<h1>Tokenizer</h1>
+
+<p>When a string containing SQL statements is to be evaluated it is
+first sent to the tokenizer.
+The tokenizer breaks
+the SQL text into tokens and hands those tokens
+one by one to the parser.  The tokenizer is hand-coded in 
+the file <file>tokenize.c</b>.
+
+<p>Note that in this design, the tokenizer calls the parser.  People
+who are familiar with YACC and BISON may be accustomed to doing things the
+other way around &mdash; having the parser call the tokenizer.  Having
+the tokenizer call the parser is better, though, because it can be made
+threadsafe and it runs faster.</p>
+
+<h1>Parser</h1>
+
+<p>The parser assigns meaning to tokens based on
+their context.  The parser for SQLite is generated using the
+<a href="https://www.sqlite.org/src/doc/trunk/doc/lemon.html">Lemon</a>
+LALR(1) parser generator.
+Lemon does the same job as YACC/BISON, but it uses
+a different input syntax which is less error-prone.
+Lemon also generates a parser which is reentrant and thread-safe.
+And Lemon defines the concept of a non-terminal destructor so
+that it does not leak memory when syntax errors are encountered.
+The grammar file that drives Lemon and that defines the SQL language
+that SQLite understands is found in <file>parse.y</file>.
+
+<p>Because
+Lemon is a program not normally found on development machines, the
+complete source code to Lemon (just one C file) is included in the
+SQLite distribution in the "tool" subdirectory.
+</p>
+
+<h1>Code Generator</h1>
+
+<p>After the parser assembles tokens into a parse tree,
+the code generator runs to analyze the parser tree and generate
+[bytecode] that performs the work of the SQL statement.
+The [prepared statement] object is a container for this bytecode.
+There are many files in the code generator, including:
+<file>attach.c</file>,
+<file>auth.c</file>,
+<file>build.c</file>,
+<file>delete.c</file>,
+<file>expr.c</file>,
+<file>insert.c</file>,
+<file>pragma.c</file>,
+<file>select.c</file>,
+<file>trigger.c</file>,
+<file>update.c</file>,
+<file>vacuum.c</file>,
+<file>where.c</file>,
+<file>wherecode.c</file>, and
+<file>whereexpr.c</file>.
+In these files is where most of the serious magic happens.
+<file>expr.c</file> handles code generation for expressions.
+<b>where*.c</b> handles code generation for WHERE clauses on
+SELECT, UPDATE and DELETE statements.  The files <file>attach.c</file>,
+<file>delete.c</file>, <file>insert.c</file>, <file>select.c</file>, 
+<file>trigger.c</file>
+<file>update.c</file>, and <file>vacuum.c</file> handle the code generation
+for SQL statements with the same names.  (Each of these files calls routines
+in <file>expr.c</file> and <file>where.c</file> as necessary.)  All other
+SQL statements are coded out of <file>build.c</file>.
+The <file>auth.c</file> file implements the functionality of
+[sqlite3_set_authorizer()].</p>
+
+<p>The code generator, and especially the logic in <b>where*.c</b>
+and in <file>select.c</file>, is sometimes called the
+[query planner].  For any particular SQL statement, there might be
+hundreds, thousands, or millions of different algorithms to compute
+the answer.  The query planner is an AI that strives to select the
+best algorithm from these millions of choices.
+
+<h1>Bytecode Engine</h1>
+
+<p>The [bytecode] program created by the code generator is run by
+a virtual machine.
+
+<p>The virtual machine itself is entirely contained in a single
+source file <file>vdbe.c</file>.  The
+<file>vdbe.h</file> header file defines an interface
+between the virtual machine and the rest of the SQLite library and
+<file>vdbeInt.h</file> which defines structures and interfaces that
+are private the virtual machine itself.
+Various other <b>vdbe*.c</b> files are helpers to the virtual machine.
+The <file>vdbeaux.c</file> file contains utilities used by the virtual
+machine and interface modules used by the rest of the library to
+construct VM programs.  The <file>vdbeapi.c</file> file contains external
+interfaces to the virtual machine such as the 
+[sqlite3_bind_int()] and [sqlite3_step()].  Individual values
+(strings, integer, floating point numbers, and BLOBs) are stored
+in an internal object named "Mem" which is implemented by
+<file>vdbemem.c</file>.</p>
+
+<p>
+SQLite implements SQL functions using callbacks to C-language routines.
+Even the built-in SQL functions are implemented this way.  Most of
+the built-in SQL functions (ex: [abs()], [count()],
+[substr()], and so forth) can be found in <file>func.c</file> source
+file.
+Date and time conversion functions are found in <file>date.c</file>.
+Some functions such as [coalesce()] and [typeof()] are implemented
+as bytecode directly by the code generator.
+</p>
+
+<h1>B-Tree</h1>
+
+<p>An SQLite database is maintained on disk using a B-tree implementation
+found in the <file>btree.c</file> source file.  A separate B-tree is used for
+each table and index in the database.  All B-trees are stored in the
+same disk file.  The [file format] details are stable and well-defined and
+are guaranteed to be compatible moving forward.</p>
+
+<p>The interface to the B-tree subsystem and the rest of the SQLite library
+is defined by the header file <file>btree.h</file>.
+</p>
+
+<h1>Page Cache</h1>
+
+<p>The B-tree module requests information from the disk in fixed-size
+pages.  The default [page_size] is 4096 bytes but can be any power of
+two between 512 and 65536 bytes.
+The page cache is responsible for reading, writing, and
+caching these pages.
+The page cache also provides the rollback and atomic commit abstraction
+and takes care of locking of the database file.  The
+B-tree driver requests particular pages from the page cache and notifies
+the page cache when it wants to modify pages or commit or rollback
+changes. The page cache handles all the messy details of making sure
+the requests are handled quickly, safely, and efficiently.</p>
+
+<p>The primary page cache implementation is in the
+<file>pager.c</file> file.  [WAL mode] logic is in the separate
+<file>wal.c</file>.  In-memory caching is implemented by the
+<file>pcache.c</file> and <file>pcache1.c</file> files.
+The interface between page cache subsystem
+and the rest of SQLite is defined by the header file <file>pager.h</file>.
+</p>
+
+<h1>OS Interface</h1>
+
+<p>
+In order to provide portability between across operating systems,
+SQLite uses abstract object called the [VFS].  Each VFS provides methods
+for opening, read, writing, and closing files on disk, and for other
+OS-specific task such as finding the current time, or obtaining randomness
+to initialize the built-in pseudo-random number generator.
+SQLite currently provides VFSes for unix (in the <file>os_unix.c</file>
+file) and Windows (in the <file>os_win.c</file> file).
+</p>
+
+<h1>Utilities</h1>
+
+<p>
+Memory allocation, caseless string comparison routines, 
+portable text-to-number conversion routines, and other utilities
+are located in <file>util.c</file>.
+Symbol tables used by the parser are maintained by hash tables found
+in <file>hash.c</file>.  The <file>utf.c</file> source file contains Unicode
+conversion subroutines.
+SQLite has its own private implementation of 
+[sqlite3_mprintf|printf()] (with
+some extensions) in <file>printf.c</file> and its own
+pseudo-random number generator (PRNG) in <file>random.c</file>.
+</p>
+
+<h1>Test Code</h1>
+
+<p>
+Files in the "src/" folder of the source tree whose names begin with
+<b>test</b> are for testing only and are not included in a standard
+build of the library.
+</p>
+}
+</tcl>

@@ -1,0 +1,31 @@
+<title>Website Keyword Index</title>
+<h2 align=center>Keyword Index</h1>
+
+<var class="rightsidebar border2px desktoponly">
+Other Documentation Indexes:
+<ul>
+<li>[categorical listing of SQLite documents | Categorical Document List]
+<li>[books about SQLite | Books About SQLite]
+<li>[doclist | Alphabetical List Of Documents]
+<li>[permuted index | Permuted Document Title Index]
+</ul>
+</var>
+
+<ul class='lessindent'>
+<tcl>
+hd_keywords {keyword index}
+db eval {
+  UPDATE keyword SET indexKw=0
+   WHERE kw GLOB '*s' AND indexKw
+     AND EXISTS(SELECT 1 FROM keyword AS x
+                 WHERE x.kw = substr(keyword.kw,1,length(keyword.kw)-1));
+}
+db eval {
+  SELECT kw, fragment FROM keyword
+   WHERE indexKw
+   ORDER BY ltrim(kw,'"''-.') COLLATE nocase
+} {
+  hd_puts "<li> <a href=\"$fragment\">$kw</a> </li>\n"
+}
+</tcl>
+</ul>

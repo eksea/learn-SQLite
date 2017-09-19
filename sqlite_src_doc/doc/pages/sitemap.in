@@ -1,0 +1,55 @@
+<title>SQLite Site Map</title>
+
+
+<tcl>hd_keywords {permuted index}</tcl>
+<h2>Permuted Index</h2>
+
+<var class="rightsidebar border2px desktoponly">
+Other Documentation Indices:
+<ul>
+<li>[categorical listing of SQLite documents | Categorical Document List]
+<li>[books about SQLite | Books About SQLite]
+<li>[doclist | Alphabetical List Of Documents]
+<li>[keyword index | Website Keyword Index]
+</ul>
+</var>
+
+<ul class='lessindent'>
+<tcl>
+db eval {
+  DROP TABLE IF EXISTS px;
+  CREATE TEMP TABLE px(title COLLATE nocase,link);
+}
+db eval {
+  SELECT pagetitle, filename FROM page WHERE pagetitle!='No Title'
+  UNION ALL
+  SELECT alttitle, filename FROM alttitle, page
+   WHERE alttitle.pageid=page.pageid
+  UNION ALL
+  SELECT pagetitle, url FROM expage
+} {
+  regsub -all -- {-} $pagetitle { } pagetitle
+  set nword [llength $pagetitle]
+  db eval {INSERT INTO px VALUES($pagetitle, $filename)}
+  for {set i 1} {$i<$nword} {incr i} {
+    set firstpart [lrange $pagetitle 0 [expr {$i-1}]]
+    set lastpart [lrange $pagetitle $i end]
+    set w [string tolower [lindex $lastpart 0]]
+    if {![regexp {^[a-z]} $w]} continue
+    if {[string length $w]<3} continue
+    if {$w=="sqlite" || $w=="for" || $w=="the"} continue
+    set perm "$lastpart &#151; $firstpart"
+    db eval {INSERT INTO px VALUES($perm,$filename)}
+  }
+}
+db eval {
+  SELECT title, link FROM px ORDER BY title
+} {
+  if {[regexp { \&#151; } $title]} {
+    hd_putsnl "<li><a href=\"$link\">$title</a></li>"
+  } else {
+    hd_putsnl "<li><b><a href=\"$link\">$title</a></b></li>"
+  }
+} 
+</tcl>
+</ul>

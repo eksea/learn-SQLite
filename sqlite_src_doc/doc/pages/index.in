@@ -1,0 +1,112 @@
+<title>SQLite Home Page</title>
+
+<div class="rightsidebar desktoponly border2px">
+<h3 align="center">Common Links</h3>
+<tcl>common_links</tcl>
+</div>
+
+<p>SQLite is a [self-contained], [high-reliability], 
+[serverless|embedded],
+[full-featured SQL|full-featured], [public-domain],
+SQL database engine.
+SQLite is the [most used] database engine in the world.
+<a class="button" href="about.html">More Info</a></p>
+
+<hr class="xhr">
+<span class="hdrfont">Latest Release:&nbsp;&nbsp;</span>
+<a href="releaselog/3_21_0.html">Version 3.21.0</a> ([dateof:3.21.0]).
+<a class="button" href="download.html">Download</a>
+<a class="button" href="chronology.html">Prior Releases</a>
+
+<div class="mobileonly">
+<hr class="xhr">
+<h3>Common Links</h3>
+<tcl>common_links</tcl>
+</div>
+
+<hr class="xhr">
+<h3>Sponsors</h3>
+<p>Ongoing development and support of SQLite is made possible in part
+by <a href="consortium.html">SQLite Consortium</a> members, including:</p>
+<a name="consortium_members"></a>
+<style>
+#sponsors {
+  margin:auto;
+  width:80%;
+}
+.onesponsor a img {
+  width:200px;
+  max-width:200px;
+  padding:1ex;
+}
+</style>
+<div id="sponsors"></div>
+<script>
+<tcl>
+set sponsors {
+  {name   Mozilla
+   url    https://www.mozilla.com/
+   image  mozilla.gif
+   blurb  "Working to preserve choice and innovation on the internet."
+  }
+  {name   Bloomberg
+   url    https://www.bloomberg.com/
+   image  bloomberg.gif
+   blurb  "A world leader in financial-information technology."
+  }
+  {name   Bentley
+   url    https://www.bentley.com/
+   image  bentley.gif
+   blurb  "Comprehensive software solutions for Sustaining Infrastructure."
+  }
+  {name   NDS
+   url    http://www.nds-association.org/
+   image  nds.png
+   blurb  "The leading map standard for automotive infotainment and autonomous driving."
+  }
+  {name   Expensify
+   url    https://www.expensify.com/
+   image  expensify.png
+   width  225
+   height 32
+   blurb  "We power the most exciting companies in the world using SQLite."
+  }
+}
+set sep {  var sponsors = [}
+set nspons 0
+foreach spons $sponsors {
+  hd_putsnl $sep\173
+  set sep ","
+  unset -nocomplain x
+  array set x $spons
+  hd_putsnl "    \"name\":\"$x(name)\","
+  hd_putsnl "    \"href\":\"$x(url)\","
+  hd_putsnl "    \"src\":\"$x(image)\","
+  if {[info exists x(width)]} {
+    hd_putsnl "    \"wx\":$x(width),"
+    hd_putsnl "    \"hx\":$x(height)"
+  } else {
+    hd_putsnl "    \"wx\":0"
+  }
+  hd_puts "  \175"
+  incr nspons
+}
+unset -nocomplain x
+hd_putsnl "\];"
+hd_puts {
+  for(var i=0; i<sponsors.length; i++){sponsors[i].idx = Math.random();}
+  sponsors.sort(function(a,b){return a.idx-b.idx});
+  var h = "";
+  for(var i=0; i<sponsors.length; i++){
+    h += "<span class='onesponsor'><a href='";
+    h += sponsors[i].href;
+    h += "'><img src='images/foreignlogos/";
+    h += sponsors[i].src;
+    h += "'></a></span>\n";
+  }
+  document.getElementById("sponsors").innerHTML = h;
+}
+</tcl>
+</script>
+<br clear="both">
+<hr class="xhr">

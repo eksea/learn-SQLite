@@ -1,0 +1,44 @@
+<title>SQLite is a Self Contained System</title>
+<tcl>hd_keywords {self-contained} {low-dependency}</tcl>
+
+<fancy_format>
+
+<p>
+SQLite is "stand-alone" or "self-contained" in the sense that it
+has very few dependencies.  It runs on any operating system, even
+stripped-down bare-bones embedded operating systems.  SQLite uses
+no external libraries or interfaces (other than a few standard C-library 
+calls described below).  The entire SQLite library is
+encapsulated in a [amalgamation|single source code file] that requires
+no special facilities or tools to build.
+
+<p>
+A minimal build of SQLite requires just these routines from the
+standard C library:
+<ul>
+<li>memcmp()
+<li>memcpy()
+<li>memmove()
+<li>memset()
+<li>strcmp()
+<li>strlen()
+<li>strncmp()
+</ul>
+
+<p>
+Most builds also use the system memory allocation routines:
+<ul>
+<li>malloc()
+<li>realloc()
+<li>free()
+</ul>
+<p>But those routines are optional can can be omitted
+using a [SQLITE_ZERO_MALLOC|compile-time option].
+
+<p>
+Defaultbuilds of SQLite contain appropriate [VFS|VFS objects] for talking
+to underlying operating system, and those VFS objects will contain
+operating system calls such as open(), read(), write(), fsync(), and
+so forth.  All of these interfaces are readily available on most platforms,
+and custom VFSes can be designed to run SQLite on even the most
+austere embedded devices.

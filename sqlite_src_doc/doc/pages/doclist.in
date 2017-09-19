@@ -1,0 +1,38 @@
+<title>Alphabetical List Of SQLite Documents</title>
+<h2 align=center>Alphabetical List Of Documents</h1>
+<tcl>hd_keywords {*doclist}</tcl>
+
+<var class="rightsidebar border2px desktoponly">
+See Also:
+<ul>
+<li>[categorical listing of SQLite documents | Categorical Document List]
+<li>[books about SQLite | Books About SQLite]
+<li>[permuted index | Permuted Title Index]
+<li>[keyword index | Website Keyword Index]
+</ul>
+</var>
+
+<ol>
+<tcl>
+hd_keywords {alphabetical listing of documents}
+db eval {
+  CREATE TABLE IF NOT EXISTS expage(url UNIQUE, pagetitle);
+  INSERT OR IGNORE INTO expage(url, pagetitle) VALUES
+     ('https://sqlite.org/android/','Android Bindings'),
+     ('https://system.data.sqlite.org/','System.Data.SQLite'),
+     ('https://sqlite.org/sqlar/','SQLite Archiver (sqlar.exe)'),
+     ('https://www.fossil-scm.org/','The Fossil Version Control System')
+  ;
+}
+db eval {
+  SELECT filename, pagetitle
+    FROM page
+   WHERE pagetitle IS NOT NULL AND pagetitle!='No Title'
+  UNION ALL
+  SELECT url, pagetitle FROM expage
+   ORDER BY pagetitle COLLATE nocase
+} {
+  hd_puts "<li><a href=\"$filename\">$pagetitle</a></li>\n"
+}
+</tcl>
+</ol>

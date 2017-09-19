@@ -1,0 +1,71 @@
+<title>The dbhash.exe Utility Program</title>
+<tcl>hd_keywords dbhash dbhash.exe</tcl>
+<fancy_format>
+
+<h1>Overview</h1>
+
+<p>The <b>dbhash</b> (or <b>dbhash.exe</b> on Windows) utility is a
+command-line program that computes the SHA1 hash of the schema and content 
+for an SQLite database.
+
+<p>Dbhash ignores extraneous formatting details and hashes only the database
+schema and content.  Hence the hash is constant even if the database file
+is modified by:
+
+<ul>
+<li> [VACUUM]
+<li> [PRAGMA page_size]
+<li> [PRAGMA journal_mode]
+<li> [REINDEX]
+<li> [ANALYZE]
+<li> copied via the [backup API]
+<li> ... and so forth
+</ul>
+
+<p>The operations above can potentially cause vast changes the raw database file,
+and hence cause very different SHA1 hashes at the file level.
+But since the content represented in the database file is unchanged by these
+operations, the hash computed by dbhash is also unchanged.
+
+<p>Dbhash can be used to compare two databases to confirm that they
+are equivalent, even though their representation on disk is quite different.
+Dbhash might also be used to verify the content of a remote database without having
+to transmit the entire content of the remote database over a slow link.
+
+<h1>Usage</h1>
+
+<p>Dbhash is a command-line utility.
+To run it, type "dbhash" on a command-line prompt followed by the names of
+one or more SQLite database files that are to be hashed.
+The database hashes will be displayed on standard output.
+For example:
+
+<codeblock>
+drh@bella:~/sqlite/bld$ dbhash ~/Fossils/sqlite.fossil
+8d3da9ff87196312aaa33076627ccb7943ef79e3 /home/drh/Fossils/sqlite.fossil
+</codeblock>
+
+<p>Dbhash supports command-line options that can restrict the tables of the
+database file that are hashed, or restrict the hash to only content or only
+the schema.  Run "dbhash --help" for further information.
+
+<h1>Building</h1>
+
+<p>To build a copy of the dbhash utility program on unix, get a copy of the
+canonical SQLite source code and enter:
+
+<codeblock>
+./configure
+make dbhash
+</codeblock>
+
+<p>On Windows, enter:
+
+<codeblock>
+nmake /f makefile.msc dbhash.exe
+</codeblock>
+
+<p>The dbhash program is implemented by a single file of C-code
+called [https://www.sqlite.org/src/artifact?ci=trunk&filename=tool/dbhash.c|dbhash.c].
+To build the dbhash program manually, simply compile the dbhash.c source file
+and link it against the SQLite library.

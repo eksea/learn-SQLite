@@ -1,0 +1,41 @@
+<title>High Reliability</title>
+<tcl>hd_keywords {high-reliability}</tcl>
+
+<fancy_format>
+
+<p>
+SQLite is a high-reliability storage solution.  It does not give
+problems.  It just works.
+
+<p>
+The high-reliability of SQLite is proven in practice.
+SQLite has been used without problems in multiple billions of smart-phones, 
+IoT devices, and desktop applications, around the world, and for
+over a decade.
+
+<p>
+SQLite responds gracefully to system errors.  Obscure out-of-memory and
+I/O errors are reported back up to the application.  These error reporting
+paths are all carefully tested to ensure they will always work.
+
+<p>
+SQLite is resilient in the face of corrupt inputs, including maliciously
+designed database files and SQL strings.  Extensive fuzz-testing ensures
+that corrupt inputs will not lead to crashes or undefined behavior, but
+will instead cause sensible errors to be reported back to the application.
+
+<p>
+SQLite is built using a 
+[https://en.wikipedia.org/wiki/DO-178B|DO-178B]-inspired process.
+The [testing|testing standards] for SQLite are among the highest for
+commercial software.
+
+<p>
+SQLite is [copyright|open-source] but it is not open-contribution.
+All the code in SQLite is written by experts.
+The project does not accept "pull requests" or other code from 
+anonymous passers-by on the internet.
+
+<p>
+All of these factors combine to make SQLite a very trouble-free
+software library.

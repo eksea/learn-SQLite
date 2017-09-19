@@ -1,0 +1,96 @@
+<title>Why Is SQLite Coded In C</title>
+
+<table_of_contents>
+
+<h1>C Is Best</h1>
+
+<p>
+Since its inception on 2000-05-29, SQLite has been implemented in generic C.
+C was and continues to be the best language for implementing a software
+library like SQLite.  There are no plans to recode SQLite in any other
+programming language anytime soon.
+
+<p>
+The reasons why C is the best language to implement SQLite include:
+
+
+<ul>
+<li> Performance
+<li> Compatibility
+<li> Low-dependency
+<li> Stability
+</ul>
+
+<h2>Performance</h2>
+
+<p>An intensively used low-level library like SQLite needs to be fast.
+(And SQLite is fast, see [Internal Versus External BLOBs] and
+[35% Faster Than The Filesystem] for example.)
+
+<p>C is a great language for writing fast code.  C is sometimes
+described as "portable assembly language".  It enables to developers
+to code as close to the underlying hardware as possible while still
+remaining portable across platforms.
+
+<p>Other programming languages sometimes claim to be "as fast as C".
+But no other language claims to be faster than C for general-purpose
+programming, because none are.
+
+<h2>Compatibility</h2>
+
+<p>Nearly all systems have the ability to call with libraries
+written in C.  This is not true of other implementation languages.
+
+<p>So, for example, Android applications written in Java are able to
+invoke SQLite (through an adaptor).  Maybe it would have been more
+convenient for Android if SQLite had been coded in Java as that would
+make the interface simpler.  However, on iPhone applications are coded
+in Objective-C or Swift, neither of which have the ability to call
+libraries written in Java.  Thus, SQLite would be unusable on iPhones
+had it been written in Java.
+
+<h2>Low-Dependency</h2>
+
+<p>Libraries written in C doe not have a huge run-time dependency.
+In its minimum configuration, SQLite requires only the following
+routines from the standard C library:
+
+<center>
+<table border=0>
+<tr>
+<td valign="top">
+<ul>
+<li> memcmp()
+<li> memcpy()
+<li> memmove()
+<li> memset()
+</ul>
+</td>
+<td>&nbsp;&nbsp;&nbsp;</td>
+<td valign="top">
+<ul>
+<li> strcmp()
+<li> strlen()
+<li> strncmp()
+</ul>
+</td>
+</tr>
+</table>
+</center>
+
+<p>
+In a more complete build, SQLite also uses library routines like
+malloc() and free() and operating system interfaces for opening, reading,
+writing, and closing files.  But even then, the number of dependencies
+is very small.  Other "modern" language, in contrast, often require
+multi-megabyte runtimes loaded with thousands and thousands of interfaces.
+
+<h2>Stability</h2>
+
+<p>
+The C language is old and boring.
+It is a well-known and well-understood language.
+This is exactly what one wants when developing a module like SQLite.
+Writing a small, fast, and reliable database engine is hard enough as it
+is without the implementation language changing out from under you with
+each update to the implementation language specification.

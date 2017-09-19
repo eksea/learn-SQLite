@@ -1,0 +1,70 @@
+<title>Most Widely Deployed SQL Database Engine</title>
+<tcl>hd_keywords {most widely deployed} {most used} {most widely used}</tcl>
+
+<h2>Most Widely Deployed and Used Database Engine</h2>
+
+<p>SQLite is likely used more than all other database engines
+combined.  Billions and billions of copies
+of SQLite exist in the wild.  SQLite is found in:
+
+<ul>
+<li>Every Android device
+<li>Every iPhone and iOS device
+<li>Every Mac
+<li>Every Windows10 machine
+<li>Every Firefox, Chrome, and Safari web browser
+<li>Every instance of Skype
+<li>Every instance of iTunes
+<li>Every Dropbox client
+<li>Every TurboTax and QuickBooks
+<li>PHP and Python
+<li>Most television sets and set-top cable boxes
+<li>Most automotive multimedia systems
+<li>Countless millions of other applications
+</ul>
+
+<p>Since SQLite is used extensively in every smartphone, and there are
+roughly 3.5 billion smartphones in active use, each holding hundreds of
+SQLite database files, it is seems likely that there are over one trillion
+SQLite databases in active use.
+
+<h2>Most Widely Deployed Software Module of Any Type?</h2>
+
+<p>SQLite is probably one of the top five most deployed
+software modules of any description.  
+Other libraries with similar reach include:
+
+<ul>
+<li>
+The original <a href="http://zlib.net">zlib</a> implementation by
+Jean-loup Gailly and Mark Adler.
+<li>
+The original reference implementation for
+<a href="http://www.libpng.org">libpng</a>
+<li>
+Libjpeg from the <a href="http://ijg.org">Independent JPEG Group</a>
+</ul>
+
+<p>
+Libc is omitted from the above list even though
+it is more common than SQLite because
+libc is not a single software component but rather several
+competing implementations (ex: BSD vs. GNU) with similar interfaces.
+There are also independent implementations of libjpeg and libpng,
+though in those cases the canonical implementations are very popular.
+</p>
+
+<p>
+Precise numbers are difficult to obtain and so exact rankings
+are impossible.  But our best guess is that SQLite is the second
+mostly widely deployed software library, after libz.
+Some commentators observe that SQLite tends
+to be statically linked and thus have multiple instances on
+each machine, whereas libz tends to have just
+a single instance per machine in the form of a shared library or DLL.
+So even though the number of devices containing libz
+may be greater than the number of
+devices that contain SQLite, the total number of instances per device
+<em>might</em> be higher for SQLite and so SQLite <em>might</em>
+be the single most widely deployed and used software component.
+</p>

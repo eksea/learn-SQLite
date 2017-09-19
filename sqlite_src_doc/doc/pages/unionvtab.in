@@ -1,0 +1,115 @@
+<title>The UNION Virtual Table</title>
+<tcl>hd_keywords unionvtab {UNION virtual table} {union-vtab}</tcl>
+<fancy_format>
+<!--<h1 align='center'>
+The UNION Virtual Table
+</h1>-->
+
+<ol>
+<li value=100><p>
+The UNION virtual table (hereafter: "union-vtab")
+is a [virtual table] that makes multiple independent
+[rowid tables] tables look like a single large table.
+
+<li value=110><p>
+The tables that participate in a union-vtab can be in the same 
+database file, or they can be in separate databases files that
+are [ATTACH]-ed to the same database connection.
+
+<li value=120><p>
+The union-vtab is not built into SQLite.
+Union-vtab is a [loadable extension].
+The source code for union-vtab is contained in a single file located at
+[https://sqlite.org/src/file/ext/misc/unionvtab.c|ext/misc/unionvtab.c]
+in the SQLite source tree.
+
+<li value=200><p>
+A new union-vtab instance is created as follows:
+
+<blockquote>
+<b>CREATE VIRTUAL TABLE temp.</b><i>tabname</i> <b>USING unionvtab(</b><i>query</i><b>);</b>
+</blockquote>
+
+<li value=210><p>
+Every union-vtab must be in the TEMP namespace.  Hence, the "<b>temp.</b>"
+prior to <i>tabname</i> is required.  Only the union-vtab itself is required
+to be in the TEMP namespace - the individual tables that are being unioned
+can be any [ATTACH]-ed database.
+
+<li value=220><p>
+The <i>query</i> in the CREATE VIRTUAL TABLE statement for a union-vtab 
+must be a well-formed SQL query that returns four columns and an 
+arbitrary number of rows.  Each row in the result of the <i>query</i>
+represents a single table that is to participate in the union.
+<ol>
+<li value=221'>
+The first column is the schema name for the database that contains
+the tables.  Examples:  "main", "zone512".
+<li value=222'>
+The second column is the name of the table.
+<li value=223'>
+The third column  is the minimum value for any rowid in the table.
+<li value=224'>
+The fourth column is the maximum value of any rowid in the table.
+</ol>
+
+<li value=230><p>
+The <i>query</i> for the CREATE VIRTUAL TABLE statement of a union-vtab
+can be either a [SELECT] statement or a [VALUES clause].
+
+<li value=240><p>
+The <i>query</i> is run once when the CREATE VIRTUAL TABLE statement is
+first encountered and the results of that one run are used for all subsequent
+access to the union-vtab.  If the results of <i>query</i> change, then
+the union-vtab should be [DROP TABLE|DROP]-ed and recreated in order
+to cause the <i>query</i> to be run again.
+
+<li value=250><p>
+There must be no overlap in the bands of rowids for the various tables
+in a union-vtab.
+
+<li value=260><p>
+All tables that participate in a union-vtab must have identical
+CREATE TABLE definitions, except that the names of the tables can be different.
+
+<li value=270><p>
+All tables that participate in a union-vtab must be [rowid tables].
+
+<li value=280><p>
+The column names and definitions for <i>tabname</i> will be the same as
+the underlying tables.  An application can access <i>tabname</i> just like
+it was one of the real underlying tables.
+
+<li value=290><p>
+No table in a union-vtab may contain entries that are outside of the
+rowid bounds established by the <i>query</i> in the CREATE VIRTUAL TABLE
+statement.
+
+<li value=300><p>
+The union-vtab shall optimize access to the underlying real tables
+when the constraints on the query are among forms shown below.
+Other kinds of constraints may be optimized in the future, but only
+these constraints are optimized in the initial implementation.
+<ul>
+<li> <b>rowid=$id</b>
+<li> <b>rowid IN</b> <i>query-or-list</i>
+<li> <b>rowid BETWEEN $lwr AND $upr</b>
+</ul>
+<p>
+Other kinds of constraints may be used and will work, but other
+constraints will be checked individually for each row and will not
+be optimized (at least not initially). 
+All constraint checking is completely automatic regardless of whether
+or not optimization occurs.  The optimization referred to in this bullet point
+is a performance consideration only.  The same result is obtained
+regardless of whether or not the query is optimized.
+
+<li value=310><p>
+The union-vtab is read-only.  Support for writing may be added at a later
+time, but writing is not a part of the initial implementation.
+
+<li value=320><p>
+<i>Nota bene:</i>
+The [sqlite3_blob_open()] interface does <u>not</u> work for a union-vtab.
+BLOB content must be read from the union-vtab using ordinary SQL statements.
+</ol>

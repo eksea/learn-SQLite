@@ -1,0 +1,458 @@
+<title>The SQLite Bytecode Engine</title>
+<tcl>hd_keywords {virtual machine instructions} {VDBE} {virtual machine} \
+         {opcodes} {bytecode engine} {bytecodes} {bytecode}</tcl>
+
+<table_of_contents>
+
+<h1>Executive Summary</h1>
+
+<p>SQLite works by translating SQL statements into bytecode and
+then running that bytecode in a virtual machine.  This document
+describes how how the bytecode engine works.
+
+<p>This document describes SQLite internals.  The information provided
+here is not needed for routine application development using SQLite.
+This document is intended for people who want to delve more deeply into
+the internal operation of SQLite.
+
+<p>The bytecode engine is <u>not</u> an API of SQLite.  Details
+about the bytecode engine change from one release of SQLite to the next.
+Applications that use SQLite should not depend on any of the details
+found in this document.
+
+<tcl>
+set uuid {}
+catch {
+  exec fossil sha1sum $::SRC/src/vdbe.c 
+} uuid
+set uuid [lindex $uuid 0]
+set fd [open $::SRC/src/vdbe.c r]
+set file [read $fd]
+close $fd
+set current_op {}
+unset -nocomplain Opcode
+unset -nocomplain OpcodeList
+foreach line [split $file \n] {
+  set line [string trim $line]
+  if {[string index $line 1]!="*"} {
+    set current_op {}
+    continue
+  }
+  if {[regexp {^\*\* Synopsis:} $line]} continue
+  if {[regexp {^/\* Opcode: } $line]} {
+    set current_op [lindex $line 2]
+    set txt [lrange $line 3 end]
+    regsub -all {>} $txt {\&gt;} txt
+    regsub -all {<} $txt {\&lt;} txt
+    set Opcode($current_op:args) $txt
+    lappend OpcodeList $current_op
+    set pend {}
+    set pstart {}
+    continue
+  }
+  if {$current_op==""} continue
+  if {[regexp {^\*/} $line]} {
+    set current_op {}
+    continue
+  }
+  set line [string trim [string range $line 3 end]]
+  if {$line==""} {
+    append Opcode($current_op:text) $pend
+    set pend {}
+    set pstart {<p>}
+  } else {
+    if {![regexp {</?(ul|li|ol)} $line]} {
+      regsub -all {>} $line {\&gt;} line
+      regsub -all {<} $line {\&lt;} line
+    }
+    append Opcode($current_op:text) \n$pstart$line
+    set pstart {}
+    set pend "</p>\n"
+  }
+}
+unset file
+set fd [open $::SRC/VERSION r]
+set SQLITE_VERSION [string trim [read $fd]]
+close $fd
+set fd [open $::SRC/manifest.uuid r]
+set SQLITE_SHA1_VERSION [string trim [read $fd]]
+set SQLITE_HASH [string range $SQLITE_SHA1_VERSION 0 12]
+close $fd
+set fd [open $::SRC/manifest r]
+set file [read $fd]
+close $fd
+set SQLITE_CKIN_DATE {unknown}
+regexp {\nD (\d\d\d\d-\d\d-\d\d)} $file all SQLITE_CKIN_DATE
+unset file
+
+# Scan $txt and replace every opcode name with a link to its documentation
+#
+proc LinkOpcodeNames {txt} {
+  global Opcode
+  set out {}
+  while {[regexp {^(.*?)(OP_[A-Z][a-z])\y(.*)$} $txt \
+             all pre op tail] ||
+        [regexp {^(.*?)\y((OP_)?[A-Z][A-Za-z][A-Za-z0-9]+)\y(.*)$} $txt \
+             all pre op opx tail]} {
+    hd_resolve $pre
+    if {($pre=="" || [regexp {> *$} $pre]) && ![regexp {^OP_} $op]
+         || [regexp {^object} [string trim $tail]]} {
+      hd_puts $op
+    } else {
+      regsub {^OP_} $op {} key
+      if {[info exists Opcode($key:text)]} {
+        hd_puts "<a href=\"opcode.html#$key\">$key</a>"
+      } else {
+        hd_puts $op
+      }
+    }
+    set txt $tail
+  }
+  hd_resolve $txt
+}
+</tcl>
+
+<h1>Introduction</h1>
+
+<p>SQLite works by translating each SQL statement into bytecode and
+then running that bytecode.
+A [prepared statement] in SQLite is mostly just the bytecode needed to
+implement the corresponding SQL.  The [sqlite3_prepare_v2()] interface
+is a compiler that translates SQL into bytecode.
+The [sqlite3_step()] interface is the virtual machine that runs the
+bytecode contained within the [prepared statement].
+
+<p>The bytecode virtual machine is the heart of SQLite.
+Programmers who want to understand how SQLite operates internally
+must be familiar with the bytecode engine.
+
+<p>Historically, the bytecode engine in SQLite is called the
+"Virtual DataBase Engine" or "VDBE".  This website uses the terms
+"bytecode engine", "VDBE", "virtual machine", and "bytecode virtual
+machine" interchangeably, as they all mean the same thing.
+
+<p>
+This article also uses the terms "bytecode program" and
+"prepared statement" interchangeably, as they are mostly the same thing.
+
+<h2>VDBE Source Code</h2>
+
+<p>The source code to the bytecode engine is in the 
+[http://www.sqlite.org/src/finfo?name=src/vdbe.c | vdbe.c] source
+file.  The [opcode definitions] in this document are derived
+from comments in that source file. The 
+source code comments are the canonical source of information
+about the bytecode engine.  When in doubt, refer to the source code.</p>
+
+<p>In addition to the primary vdbe.c source code file, there are 
+other helper code files in the source tree, all of whose names
+begin with "vdbe" - short for "Virtual DataBase Engine".
+
+<p>Remember that the names and meanings of opcodes often change from
+one release of SQLite to the next.  So if you are studying the [EXPLAIN]
+output from SQLite, you should reference the version of this document
+(or the vdbe.c source code)
+that corresponds to the version of SQLite that ran the [EXPLAIN].
+Otherwise, the description of the opcodes may not be accurate.
+This document is derived from SQLite
+<tcl>
+hd_puts " version $SQLITE_VERSION check-in\n"
+set url https://www.sqlite.org/src/timeline?c=$SQLITE_HASH
+hd_puts "<a href='$url'>$SQLITE_HASH</a> dated $SQLITE_CKIN_DATE.\n\n"
+</tcl>
+
+
+<h2>Instruction Format</h2>
+
+<tcl>
+LinkOpcodeNames {
+<p>A bytecoded program in SQLite consists of one or more instructions.
+Each instruction has an opcode and
+five operands named P1, P2  P3, P4, and P5.  The P1, P2, and P3 
+operands are 32-bit signed integers.  These operands often refer to 
+registers.  For instructions that operate on b-tree cursors,
+the P1 operand is usually the cursor number.
+For jump instructions, P2 is usually the jump destination.
+P4 may be a 32-bit signed integer, a 64-bit signed integer, a
+64-bit floating point value, a string literal, a Blob literal,
+a pointer to a collating sequence comparison function, or a
+pointer to the implementation of an application-defined SQL
+function, or various other things.  P5 is an 16-bit unsigned integer
+normally used to hold flags.  Bits of the P5 flag can sometimes affect
+the opcode in subtle ways.  For example, if the 
+SQLITE_NULLEQ (0x0080) bit of the P5 operand
+is set on the OP_Eq opcode, then the NULL values compare
+equal to one another.  Otherwise NULL values compare different
+from one another.
+}
+</tcl>
+
+<p>Some opcodes use all five operands.  Some opcodes use
+one or two.  Some opcodes use none of the operands.<p>
+
+<tcl>
+LinkOpcodeNames {
+<p>The bytecode engine begins execution on instruction number 0.
+Execution continues until a OP_Halt instruction is seen, or until
+the program counter becomes greater than the address of
+last instruction, or until there is an error.
+When the bytecode engine halts, all memory
+that it allocated is released and all database cursors it may
+have had open are closed.  If the execution stopped due to an
+error, any pending transactions are terminated and changes made
+to the database are rolled back.</p>
+}
+</tcl>
+
+<tcl>
+LinkOpcodeNames {
+<p>The OP_ResultRow opcode causes the
+bytecode engine to pause and the corresponding [sqlite3_step()]
+call to return [SQLITE_ROW].  Before invoking
+OP_ResultRow, the bytecoded program will
+have loaded the results for a single row of a query into a series
+of registers.  C-language APIs such as [sqlite3_column_int()]
+or [sqlite3_column_text()] extract the query results from those
+registers.  The bytecode engine resumes with the next instruction
+after the OP_ResultRow on the next call
+to [sqlite3_step()].
+}
+</tcl>
+
+<h2>Registers</h2>
+
+<tcl>
+LinkOpcodeNames {
+<p>Every bytecode program has a fixed (but potentially large) number of
+registers.  A single register can hold a variety of objects:
+<ul>
+<li> A NULL value
+<li> A signed 64-bit integer
+<li> An IEEE double-precision (64-bit) floating point number
+<li> An arbitrary length strings
+<li> An arbitrary length BLOB
+<li> A RowSet object (See the OP_RowSetAdd, OP_RowSetRead, and
+                      OP_RowSetTest opcodes)
+<li> A Frame object (Used by [subprograms] - see OP_Program)
+</ul>
+}
+</tcl>
+
+<p>A register can also be "Undefined" meaning that it holds no value
+at all.  Undefined is different from NULL.  Depending on compile-time
+options, an attempt to read an undefined register will usually cause
+a run-time error.  If the code generator ([sqlite3_prepare_v2()])
+ever generates a [prepared statement] that reads an Undefined register,
+that is a bug in the code generator.
+
+<p>
+Registers are numbered beginning with 0.
+Most opcodes refer to at least one register.
+
+<p>The number of registers in a single prepared statement is fixed
+at compile-time.  The content of all registers is cleared when
+a prepared statement is [sqlite3_reset()|reset] or
+[sqlite3_finalize()|finalized].
+
+<p>The internal Mem object stores the value for a single register.
+The abstract [sqlite3_value] object that is exposed in the API is really
+just a Mem object or register.
+
+<h2>B-Tree Cursors</h2>
+
+<tcl>
+LinkOpcodeNames {
+<p>A prepared statement can have
+zero or more open cursors.  Each cursor is identified by a
+small integer, which is usually the P1 parameter to the opcode
+that uses the cursor.
+There can be multiple cursors open on the same index or table.
+All cursors operate independently, even cursors pointing to the same
+indices or tables.
+The only way for the virtual machine to interact with a database
+file is through a cursor.
+Instructions in the virtual machine can create a new cursor 
+(ex: OP_OpenRead or OP_OpenWrite),
+read data from a cursor (OP_Column),
+advance the cursor to the next entry in the table
+(ex: OP_Next or OP_Prev), and so forth.
+All cursors are automatically
+closed when the prepared statement is [sqlite3_reset()|reset] or
+[sqlite3_finalize()|finalized].
+}
+</tcl>
+
+<tcl>hd_fragment subprog subprograms</tcl>
+<h2>Subroutines, Coroutines, and Subprograms</h2>
+
+<p>The bytecode engine has no stack on which to store the return address
+of a subroutine.  Return addresses must be stored in registers.
+Hence, bytecode subroutines are not reentrant.
+
+<tcl>
+LinkOpcodeNames {
+<p>The OP_Gosub opcode stores the current program counter into
+register P1 then jumps to address P2.  The OP_Return opcode jumps
+to address P1+1.  Hence, every subroutine is associated with two integers:
+the address of the entry point in the subroutine and the register number
+that is used to hold the return address.
+
+<p>The OP_Yield opcode swaps the value of the program counter with
+the integer value in register P1.  This opcode is used to implement
+coroutines.  Coroutines are often used to implement subqueries from
+which content is pulled on an as-needed basis.
+}
+</tcl>
+
+<p>[CREATE TRIGGER|Triggers] need to be reentrant.
+
+<tcl>
+LinkOpcodeNames {
+Since bytecode
+subroutines are not reentrant a different mechanism must be used to
+implement triggers.  Each trigger is implemented using a separate bytecode
+program with its own opcodes, program counter, and register set.  The
+OP_Program opcode invokes the trigger subprogram.  The OP_Program instruction
+allocates and initializes a fresh register set for each invocation of the
+subprogram, so subprograms can be reentrant and recursive.  The
+OP_Param opcode is used by subprograms to access content in registers
+of the calling bytecode program.
+}
+</tcl>
+
+<h2>Self-Altering Code</h2>
+
+<tcl>
+LinkOpcodeNames {
+<p>Some opcodes are self-altering.
+For example, the OP_Init opcode (which is always the first opcode
+run a bytecode program) increments its P1 operand.  Subsequent
+OP_Once opcodes compare their P1 operands to the P1 value for
+the OP_Init opcode in order to determine if the one-time initialization
+code that follows should be skipped.
+Another example is the OP_String8 opcode which converts its P4
+operand from UTF-8 into the correct database string encoding, then
+converts itself into a OP_String opcode.
+}
+</tcl>
+
+
+<h1>Viewing The Bytecode</h1>
+
+<p>Every SQL statement that SQLite interprets results in a program
+for the virtual machine.  But if the SQL statement begins with
+the keyword [EXPLAIN] the virtual machine will not execute the
+program.  Instead, the instructions of the program will be returned,
+one instruction per row,
+like a query result.  This feature is useful for debugging and
+for learning how the virtual machine operates.  For example:
+</p>
+
+<tcl>
+proc Code {body} {
+  hd_puts {<blockquote><pre>}
+  regsub -all {&} [string trim $body] {\&amp;} body
+  regsub -all {>} $body {\&gt;} body
+  regsub -all {<} $body {\&lt;} body
+  regsub -all {\(\(\(} $body {<b>} body
+  regsub -all {\)\)\)} $body {</b>} body
+  regsub -all { } $body {\&nbsp;} body
+  hd_puts $body
+  hd_puts {</pre></blockquote>}
+}
+
+Code {
+$ (((sqlite3 ex1.db)))
+sqlite> (((explain delete from tbl1 where two<20;)))
+addr  opcode         p1    p2    p3    p4             p5  comment      
+----  -------------  ----  ----  ----  -------------  --  -------------
+0     Init           0     12    0                    00  Start at 12  
+1     Null           0     1     0                    00  r[1]=NULL    
+2     OpenWrite      0     2     0     3              00  root=2 iDb=0; tbl1
+3     Rewind         0     10    0                    00               
+4       Column         0     1     2                    00  r[2]=tbl1.two
+5       Ge             3     9     2     (BINARY)       51  if r[2]>=r[3] goto 9
+6       Rowid          0     4     0                    00  r[4]=rowid   
+7       Once           0     8     0                    00               
+8       Delete         0     1     0     tbl1           02               
+9     Next           0     4     0                    01               
+10    Noop           0     0     0                    00               
+11    Halt           0     0     0                    00               
+12    Transaction    0     1     1     0              01  usesStmtJournal=0
+13    TableLock      0     2     1     tbl1           00  iDb=0 root=2 write=1
+14    Integer        20    3     0                    00  r[3]=20      
+15    Goto           0     1     0                    00               
+}
+</tcl>
+
+<p>Any application can run an [EXPLAIN] query to get output similar to 
+the above.
+However, indentation to show the loop structure is not generated
+by the SQLite core.  The [command-line shell] contains extra logic
+for indenting loops.
+Also, the "comment" column in the [EXPLAIN] output
+is only provided if SQLite is compiled with the
+[-DSQLITE_ENABLE_EXPLAIN_COMMENTS] options.
+
+<p>When SQLite is compiled with the [SQLITE_DEBUG] compile-time option,
+extra [PRAGMA] commands are available that are useful for debugging and
+for exploring the operation of the VDBE.  For example the [vdbe_trace]
+pragma can be enabled to cause a disassembly of each VDBE opcode to be
+printed on standard output as the opcode is executed.  These debugging
+pragmas include:
+<ul>
+<li> [PRAGMA parser_trace]
+<li> [PRAGMA vdbe_addoptrace]
+<li> [PRAGMA vdbe_debug]
+<li> [PRAGMA vdbe_listing]
+<li> [PRAGMA vdbe_trace]
+</ul>
+</p>
+
+<h1>The Opcodes</h1>
+
+<p>There are currently <tcl>hd_puts [llength $OpcodeList]</tcl>
+opcodes defined by the virtual machine.
+All currently defined opcodes are described in the table below.
+This table was generated automatically by scanning the source code
+from the file
+<tcl>
+if {$uuid==""} {
+  hd_puts "<b>vdbe.c</b>.\n"
+} else {
+  hd_puts "<a href=\"http://www.sqlite.org/src/artifact/$uuid\">vdbe.c</a>.\n"
+}
+</tcl>
+
+<p>Remember: The VDBE opcodes are <u>not</u> part of the interface 
+definition for SQLite.  The number of opcodes and their names and meanings
+change from one release of SQLite to the next.
+The opcodes shown in the table below are valid for SQLite
+<tcl>
+hd_puts " version $SQLITE_VERSION check-in\n"
+hd_puts "<a href='$url'>$SQLITE_HASH</a> dated $SQLITE_CKIN_DATE.\n\n"
+
+hd_fragment codes {list of current bytecodes} {opcode definitions}
+ 
+hd_puts {
+  </div>
+  <style>.optab td {vertical-align:top; padding: 1ex 1ex;}</style>
+  <div class="optab">
+  <blockquote><table cellspacing=0 border=1 cellpaddin>
+  <tr><th>Opcode Name</th><th>Description</th></tr>
+}
+foreach op [lsort -dictionary $OpcodeList] {
+  hd_puts {<tr><td valign="top" align="center">}
+  hd_puts "\n<a name=\"$op\"></a>$op\n"
+  regsub -all {\[(P[0-9+]+)\]} $Opcode($op:text) {\&#91;\1\&#93} txt
+  hd_puts "<td>"
+  set txt [string trim $txt]
+  if {[string match <p>* $txt]} {set txt [string range $txt 3 end]}
+  LinkOpcodeNames $txt
+  hd_puts "</td></tr>\n"
+}
+hd_resolve {
+  </table></blockquote>
+  </div>
+}
+</tcl>

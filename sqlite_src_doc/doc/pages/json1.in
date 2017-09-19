@@ -1,0 +1,758 @@
+<title>The JSON1 Extension</title>
+<tcl>hd_keywords json1 {the json1 extension} {JSON SQL functions}</tcl>
+
+<table_of_contents>
+
+<h1>Overview</h1>
+<p>
+The <b>json1</b> extension is a [loadable extension] that
+implements fifteen [application-defined SQL functions] and
+two [table-valued functions] that are useful for
+managing [http://json.org/ | JSON] content stored in an SQLite database.
+Twelve of the fourteen SQL functions are  scalar functions:
+
+<ol>
+<tcl>
+set tabcnt 0
+proc tabentry {fx desc lnk} {
+  global tabcnt
+  incr tabcnt
+  hd_puts "<li value='$tabcnt'>\n"
+  set fx [string trim $fx]
+  set hlink "<a href='#$lnk'>"
+  regsub -all {^json\(} $fx "${hlink}json</a>(" fx
+  regsub -all {(json_[a-z_]+)} $fx "$hlink\\1</a>" fx
+  regsub -all {(value[1-9]?|path|label[1-9]?)} $fx "<i>\\1</i>" fx
+  regsub -all {\((json)} $fx "(<i>\\1</i>" fx
+  hd_puts "$fx\n"
+  # hd_puts "[string trim $desc]\n"
+  hd_puts "</li>\n\n"
+}
+set tsctr 100
+
+tabentry {json(json)} {
+  Validate and minify a JSON string
+} jmini
+
+tabentry {json_array(value1,value2,...)} {
+  Return a JSON array holding the function arguments.
+} jarray
+
+tabentry {json_array_length(json)<br>json_array_length(json,path)} {
+  Return the number of elements in the JSON array identified by
+  the arguments.
+} jarraylen
+
+tabentry {json_extract(json,path,...)} {
+  Extract values or subcomponents from a JSON string.
+} jex
+
+tabentry {json_insert(json,path,value,...)} {
+  Insert values into a JSON string without overwriting existing values.
+} jins
+
+tabentry {json_object(label1,value1,...)} {
+  Construct and return a new JSON object based on the arguments.
+} jobj
+
+tabentry {json_patch(json1,json2)} {
+  Apply the [https://tools.ietf.org/html/rfc7396|RFC-7396] MergePatch
+  algorithm.
+} jpatch
+
+tabentry {json_remove(json,path,...)} {
+  Remove the specified values from a JSON string.
+} jrm
+
+tabentry {json_replace(json,path,value,...)} {
+  Update existing values within a JSON string.
+} jrepl
+
+tabentry {json_set(json,path,value,...)} {
+  Insert or replace values in a JSON string.  Overwrite existing elements
+  or create new entries in the JSON string for elements that do not 
+  previously exist.
+} jset
+
+tabentry {json_type(json)<br>json_type(json,path)} {
+  Return the type of a JSON string or subcomponent.
+} jtype
+
+tabentry {json_valid(json)} {
+  Return true (1) if the input text is a valid JSON string
+} jvalid
+
+tabentry {json_quote(value)} {
+  Convert an SQL value (a number or a string) into its corresponding JSON
+  representation.
+} jvalid
+</tcl>
+</ol>
+
+<p>There are two aggregate SQL functions:
+
+<ol>
+<tcl>
+tabentry {json_group_array(value)} {
+  Return a JSON array composed of all <i>value</i> elements 
+  in the aggregation.
+} jgrouparray
+
+tabentry {json_group_object(name,value)} {
+  Return a JSON object composed of all <i>name</i> and <i>value</i> pairs
+  in the aggregation.
+} jgroupobject
+</tcl>
+</ol>
+
+<p>The two [table-valued functions] are:
+
+<ol>
+<tcl>
+tabentry {json_each(json)<br>json_each(json,path)} {
+  Return one row describing each element in an array or object
+  at the top-level or at "path" within the input JSON.
+} jeach
+
+tabentry {json_tree(json)<br>json_tree(json,path)} {
+  Walk the JSON recursively starting at the top-level or at the
+  specified "path" and return one row for each element.
+} jtree
+</tcl>
+</ol>
+
+
+<tcl>
+hd_puts {
+<style>
+.jans {color: #050;}
+.jex {color: #025;}
+</style>
+}
+proc jexample {args} {
+  hd_puts "<ul>\n"
+  foreach {sql res} $args {
+    ### uncomment to generate test cases from the examples
+    # global tsctr
+    # puts "do_execsql_test json102-$tsctr \173"
+    # incr tsctr 10
+    # puts "  SELECT [string trim $sql];"
+    # set x \173[string trim $res ']\175
+    # puts "\175 \173$x\175"
+    hd_putsnl "<li><span class='jex'>[string trim $sql]</span>"
+    hd_putsnl "<span class='jans'>&rarr; [string trim $res]</span></li>\n"
+  }
+  hd_puts "</ul>\n"
+}
+</tcl>
+
+<tcl>hd_fragment howtocompile</tcl>
+<h1>Compiling the JSON1 Extension</h1>
+
+<p>
+The [loadable extensions] documentation describes
+how to [compile loadable extensions] as shared libraries.  The
+techniques described there work fine for the json1 module.
+
+<p>
+The json1 source code is included with the SQLite [amalgamation], though
+it is disabled by default.  Add the [-DSQLITE_ENABLE_JSON1] compile-time
+option to enable the json1 extension that is built into the [amalgamation].
+The standard makefiles include -DSQLITE_ENABLE_JSON1 when building the
+[command-line shell] and some of the test utilities so this extension is
+normally available in the [command-line shell].
+
+<h1>Interface Overview</h1>
+
+<p>
+The json1 extension (currently) stores JSON as ordinary text.
+
+<p>
+Backwards compatibility constraints mean that SQLite is only able to
+store values that are NULL, integers, floating-point numbers, text,
+and BLOBs.  It is not possible to add a sixth "JSON" type.
+
+<p>
+The json1 extension does not (currently) support a binary encoding
+of JSON.  Experiments have been unable to find a binary encoding
+that is significantly smaller or faster than a plain text encoding.
+(The present implementation parses JSON text at over 300 MB/s.)
+All json1 functions currently throw an error if any of their
+arguments are BLOBs because BLOBs are reserved
+for a future enhancement in which BLOBs will store the binary encoding
+for JSON.
+
+<p>
+The "1" at the end of the name for the json1 extension is deliberate.
+The designers anticipate that there will be future incompatible JSON
+extensions building upon the lessons learned from json1.
+Once sufficient experience is gained, some kind of
+JSON extension might be folded into the SQLite core.  For now,
+JSON support remains an extension.
+
+<h2>JSON arguments</h2>
+
+<p>
+For functions that accept JSON as their first argument, that argument
+can be a JSON object, array, number, string, or null.  SQLite numeric
+values and NULL values are interpreted as JSON numbers and nulls, respectively.
+SQLite text values can be understood as JSON objects, arrays, or strings.
+If an SQLite text value that is not a well-formed JSON object, array, or
+string is passed into json1 function, that function will usually throw
+an error.  (Exceptions to this rule are [json_valid()] and
+[json_quote()].)
+
+<p>
+For the purposes of determining validity, leading and trailing whitespace
+on JSON inputs is ignored.  Interior whitespace is also ignored, in accordance
+with the JSON spec.  These routines accept exactly the 
+[http://www.rfc-editor.org/rfc/rfc7159.txt | rfc-7159 JSON syntax]
+&mdash; no more and no less.
+
+<h2>PATH arguments</h2>
+
+<p>
+For functions that accept PATH arguments, that PATH must be well-formed or
+else the function will throw an error.
+A well-formed PATH is a text value that begins with exactly one
+'$' character followed by zero or more instances
+of ".<i>objectlabel</i>" or "&#91<i>arrayindex</i>&#93".
+
+<h2>VALUE arguments</h2>
+
+<p>
+For functions that accept "<i>value</i>" arguments (also shown as
+"<i>value1</i>" and "<i>value2</i>"),
+those arguments is usually understood
+to be a literal strings that are quoted and becomes JSON string values
+in the result.  Even if the input <i>value</i> strings look like 
+well-formed JSON, they are still interpreted as literal strings in the
+result.
+
+<p>
+However, if a <i>value</i> argument come directly from the result of another
+json1 function, then the argument is understood to be actual JSON and
+the complete JSON is inserted rather than a quoted string.
+
+<p>
+For example, in the following call to json_object(), the <i>value</i>
+argument looks like a well-formed JSON array.  However, because it is just
+ordinary SQL text, it is interpreted as a literal string and added to the
+result as a quoted string:
+
+<tcl>
+jexample {json_object('ex','[52,3.14159]')} {'{"ex":"[52,3.14159]"}'}
+</tcl>
+
+<p>
+But if the <i>value</i> argument in the outer json_object() call is the
+result of another json1 function like [json()] or [json_array()], then
+the value is understood to be actual JSON and is inserted as such:
+
+<tcl>
+jexample \
+  {json_object('ex',json('[52,3.14159]'))} {'{"ex":[52,3.14159]}'}  \
+  {json_object('ex',json_array(52,3.14159))} {'{"ex":[52,3.14159]}'}
+</tcl>
+
+<p>
+To be clear: "<i>json</i>" arguments are always interpreted as JSON
+regardless of where the value for that argument comes from.  But
+"<i>value</i>" arguments are only interpreted as JSON if those arguments
+come directly from another json1 function.
+
+<h2>Compatibility</h2>
+
+<p>
+The json1 extension uses the [sqlite3_value_subtype()] and
+[sqlite3_result_subtype()] interfaces that were introduced with
+SQLite version 3.9.0 ([dateof:3.9.0])
+The json1 extension will not work
+in earlier versions of SQLite.
+
+<p>
+The current implementation of this JSON library uses a recursive descent
+parser.  In order to avoid using excess stack space, any JSON input that has
+more than 2000 levels of nesting is considered invalid.   Limits on nesting
+depth are allowed for compatible implementations of JSON by
+[https://tools.ietf.org/html/rfc7159#section-9|RFC-7159 section 9].
+
+
+<h1>Function Details</h1>
+
+<p>The following sections provide additional detail on the operation of
+the various functions that are part of the json1 extension.
+
+<tcl>hd_fragment jmini {json SQL function} {json}</tcl>
+<h2>The json() function</h2>
+
+<p>The json(X) function verifies that its argument X is a valid
+JSON string and returns a minified version of that JSON string
+(with all unnecessary whitespace removed).  If X is not a well-formed
+JSON string, then this routine throws an error.
+
+<p>If the argument X to json(X) contains JSON objects with duplicate
+labels, then it is undefined whether or not the duplicates are
+preserved.  The current implementation preserves duplicates.
+However, future enhancements
+to this routine may choose to silently remove duplicates.
+
+<p>
+Example:
+
+<tcl>
+jexample \
+  {json(' { "this" : "is", "a": [ "test" ] } ')} \
+      {'{"this":"is","a":["test"]}'}
+</tcl>
+
+<tcl>hd_fragment jarray {json_array SQL function} {json_array}</tcl>
+<h2>The json_array() function</h2>
+
+<p>The json_array() SQL function accepts zero or more arguments and
+returns a well-formed JSON array that is composed from those arguments.
+If any argument to json_array() is a BLOB then an error is thrown.
+
+<p>An argument with SQL type TEXT it is normally converted into a quoted 
+JSON string.  However, if the argument is the output from another json1
+function, then it is stored as JSON.  This allows calls to json_array()
+and [json_object()] to be nested.  The [json()] function can also
+be used to force strings to be recognized as JSON.
+
+<p>Examples:
+
+<tcl>
+jexample \
+  {json_array(1,2,'3',4)} {'[1,2,"3",4]'} \
+  {json_array('[1,2]')} {'["[1,2]"]'} \
+  {json_array(json_array(1,2))} {'[[1,2]]'} \
+  {json_array(1,null,'3','[4,5]','{"six":7.7}')} \
+      {'[1,null,"3","[4,5]","{\"six\":7.7}"]'} \
+  {json_array(1,null,'3',json('[4,5]'),json('{"six":7.7}'))} \
+      {'[1,null,"3",[4,5],{"six":7.7}]'}
+</tcl>
+
+
+<tcl>hd_fragment jarraylen {json_array_length SQL function} \
+         {json_array_length}</tcl>
+<h2>The json_array_length() function</h2>
+
+<p>The json_array_length(X) function returns the number of elements
+in the JSON array X, or 0 if X is some kind of JSON value other
+than an array.  The json_array_length(X,P) locates the array at path P
+within X and returns the length of that array, or 0 if path P locates
+a element or X other than a JSON array, and NULL if path P does not
+locate any element of X.  Errors are thrown if either X is not 
+well-formed JSON or if P is not a well-formed path.
+
+<p>Examples:
+
+<tcl>
+jexample \
+  {json_array_length('[1,2,3,4]')} {4} \
+  {json_array_length('[1,2,3,4]', '$')} {4} \
+  {json_array_length('[1,2,3,4]', '$[2]')} {0} \
+  {json_array_length('{"one":[1,2,3]}')} {0} \
+  {json_array_length('{"one":[1,2,3]}', '$.one')} {3} \
+  {json_array_length('{"one":[1,2,3]}', '$.two')} {NULL}
+</tcl>
+
+
+<tcl>hd_fragment jex {json_extract SQL function} {json_extract}</tcl>
+<h2>The json_extract() function</h2>
+
+<p>The json_extract(X,P1,P2,...) extracts and returns one or more 
+values from the
+well-formed JSON at X.  If only a single path P1 is provided, then the
+SQL datatype of the result is NULL for a JSON null, INTEGER or REAL
+for a JSON numeric value, an INTEGER zero for a JSON false value,
+an INTEGER one for a JSON true value, the dequoted text for a 
+JSON string value, and a text representation for JSON object and array values.
+If there are multiple path arguments (P1, P2, and so forth) then this
+routine returns SQLite text which is a well-formed JSON array holding
+the various values.
+
+<p>Examples:
+
+<tcl>
+jexample \
+  {json_extract('{"a":2,"c":[4,5,{"f":7}]}', '$')} \
+      {'{"a":2,"c":[4,5,{"f":7}]}'} \
+  {json_extract('{"a":2,"c":[4,5,{"f":7}]}', '$.c')} \
+      {'[4,5,{"f":7}]'} \
+  {json_extract('{"a":2,"c":[4,5,{"f":7}]}', '$.c[2]')} \
+      {'{"f":7}'} \
+  {json_extract('{"a":2,"c":[4,5,{"f":7}]}', '$.c[2].f')} {7} \
+  {json_extract('{"a":2,"c":[4,5],"f":7}','$.c','$.a')} {'[[4,5],2]'} \
+  {json_extract('{"a":2,"c":[4,5,{"f":7}]}', '$.x')} NULL \
+  {json_extract('{"a":2,"c":[4,5,{"f":7}]}', '$.x', '$.a')} {'[null,2]'}
+</tcl>  
+
+<tcl>hd_fragment jins {json_insert SQL function} {json_insert}</tcl>
+<tcl>hd_fragment jrepl {json_replace SQL function} {json_replace}</tcl>
+<tcl>hd_fragment jset {json_set SQL function} {json_set}</tcl>
+<h2>The json_insert(), json_replace, and json_set() functions</h2>
+
+<p>The json_insert(), json_replace, and json_set() functions all take
+a single JSON value as their first argument followed by zero or more
+pairs of path and value arguments, and return a new JSON string formed
+by updating the input JSON by the path/value pairs.  The functions
+differ only in how they deal with creating new values and overwriting
+preexisting values.
+
+<center>
+<table border=1 cellpadding=3 cellspacing=0>
+<tr>
+<th>Function<th>Overwrite if already exists?<th>Create if does not exist?
+<tr>
+<td>json_insert()<td align='center'>No<td align='center'>Yes
+<tr>
+<td>json_replace()<td align='center'>Yes<td align='center'>No
+<tr>
+<td>json_set()<td align='center'>Yes<td align='center'>Yes
+</table></center>
+
+<p>The json_insert(), json_replace(), and json_set() functions always
+take an odd number of arguments.  The first argument is always the original
+JSON to be edited.  Subsequent arguments occur in pairs with the first
+element of each pair being a path and the second element being the value
+to insert or replace or set on that path.
+
+<p>Edits occurs sequentially from left to right.  Changes caused by
+prior edits can affect the path search for subsequent edits.
+
+<p>If the value of a path/value pair is an SQLite TEXT value, then it
+is normally inserted as a quoted JSON string, even if the string looks
+like valid JSON.  However, if the value is the result of another
+json1 function (such as [json()] or [json_array()] or [json_object()])
+then it is interpreted as JSON and is inserted as JSON retaining all
+of its substructure.
+
+<p>These routines throw an error if the first JSON argument is not
+well-formed or if any PATH argument is not well-formed or if any
+argument is a BLOB.
+
+<p>Examples:
+
+<tcl>
+jexample \
+  {json_insert('{"a":2,"c":4}', '$.a', 99)} {'{"a":2,"c":4}'} \
+  {json_insert('{"a":2,"c":4}', '$.e', 99)} {'{"a":2,"c":4,"e":99}'} \
+  {json_replace('{"a":2,"c":4}', '$.a', 99)} {'{"a":99,"c":4}'} \
+  {json_replace('{"a":2,"c":4}', '$.e', 99)} {'{"a":2,"c":4}'} \
+  {json_set('{"a":2,"c":4}', '$.a', 99)} {'{"a":99,"c":4}'} \
+  {json_set('{"a":2,"c":4}', '$.e', 99)} {'{"a":2,"c":4,"e":99}'} \
+  {json_set('{"a":2,"c":4}', '$.c', '[97,96]')} \
+            {'{"a":2,"c":"[97,96]"}'} \
+  {json_set('{"a":2,"c":4}', '$.c', json('[97,96]'))} \
+            {'{"a":2,"c":[97,96]}'} \
+  {json_set('{"a":2,"c":4}', '$.c', json_array(97,96))} \
+            {'{"a":2,"c":[97,96]}'}
+</tcl>
+
+<tcl>hd_fragment jobj {json_object SQL function} {json_object}</tcl>
+<h2>The json_object() function</h2>
+
+<p>The json_object() SQL function accepts zero or more pairs of arguments
+and returns a well-formed JSON object that is composed from those arguments.
+The first argument of each pair is the label and the second argument of
+each pair is the value.
+If any argument to json_object() is a BLOB then an error is thrown.
+
+<p>The json_object() function currently allows duplicate labels without
+complaint, though this might change in a future enhancement.
+
+<p>An argument with SQL type TEXT it is normally converted into a quoted 
+JSON string even if the input text is well-formed JSON.  
+However, if the argument is the direct result from another json1
+function, then it is treated as JSON and all of its JSON type information
+and substructure is preserved.  This allows calls to json_object()
+and [json_array()] to be nested.  The [json()] function can also
+be used to force strings to be recognized as JSON.
+
+<p>Examples:
+
+<tcl>
+jexample \
+  {json_object('a',2,'c',4)} {'{"a":2,"c":4}'} \
+  {json_object('a',2,'c','{e:5}')} {'{"a":2,"c":"{e:5}"}'} \
+  {json_object('a',2,'c',json_object('e',5))} {'{"a":2,"c":{"e":5}}'}
+</tcl>
+
+<tcl>hd_fragment jpatch {json_patch SQL function} {json_patch}</tcl>
+<h2>The json_patch() function</h2>
+
+<p>The json_patch(T,P) SQL function runs the
+[https://tools.ietf.org/html/rfc7396|RFC-7396] MergePatch algorithm
+to apply patch P against input T.  The patched copy of T is returned.
+
+<p>MergePatch can add, modify, or delete elements of a JSON Object,
+and so for JSON Objects, the json_patch() routine is a generalized
+replacement for [json_set()] and [json_remove()].  However, MergePatch
+treats JSON Array objects as atomic.  MergePatch cannot append to an
+Array nor modify individual elements of an Array.  It can only insert,
+replace, or delete the whole Array as a single unit.  Hence, json_patch()
+is not as useful when dealing with JSON that includes Arrays,
+especially Arrays with lots of substructure.
+
+<p>Examples:
+
+<tcl>
+jexample \
+ {json_patch('{"a":1,"b":2}','{"c":3,"d":4}')} \
+         {'{"a":1,"b":2,"c":3,"d":4}'} \
+ {json_patch('{"a":[1,2],"b":2}','{"a":9}')} \
+         {'{"a":9,"b":2}'} \
+ {json_patch('{"a":[1,2],"b":2}','{"a":null}')} \
+         {'{"b":2}'} \
+ {json_patch('{"a":1,"b":2}','{"a":9,"b":null,"c":8}')} \
+         {'{"a":9,"c":8}'} \
+ {json_patch('{"a":{"x":1,"y":2},"b":3}','{"a":{"y":9},"c":8}')} \
+         {'{"a":{"x":1,"y":9},"b":3,"c":8}'}
+</tcl>
+
+<tcl>hd_fragment jrm {json_remove SQL function} {json_remove}</tcl>
+<h2>The json_remove() function</h2>
+
+<p>The json_remove(X,P,...) function takes a single JSON value as its
+first argument followed by zero or more path arguments.
+The json_remove(X,P,...) function returns
+a new JSON value that is the X with all the elements 
+identified by path arguments removed.  Paths that select elements
+not found in X are silently ignored.
+
+<p>Removals occurs sequentially from left to right.  Changes caused by
+prior removals can affect the path search for subsequent arguments.
+
+<p>If the json_remove(X) function is called with no path arguments,
+then it returns the input X reformatted, with excess whitespace
+removed.
+
+<p>The json_remove() function throws an error if the first argument
+is not well-formed JSON or if any later argument is not a well-formed
+path, or if any argument is a BLOB.
+
+<p>Examples:
+
+<tcl>
+jexample \
+  {json_remove('[0,1,2,3,4]','$[2]')} {'[0,1,3,4]'} \
+  {json_remove('[0,1,2,3,4]','$[2]','$[0]')} {'[1,3,4]'} \
+  {json_remove('[0,1,2,3,4]','$[0]','$[2]')} {'[1,2,4]'} \
+  {json_remove('{"x":25,"y":42}')} {'{"x":25,"y":42}'} \
+  {json_remove('{"x":25,"y":42}','$.z')} {'{"x":25,"y":42}'} \
+  {json_remove('{"x":25,"y":42}','$.y')} {'{"x":25}'} \
+  {json_remove('{"x":25,"y":42}','$')} NULL
+</tcl>
+
+<tcl>hd_fragment jtype {json_type SQL function} {json_type}</tcl>
+<h2>The json_type() function</h2>
+
+<p>The json_type(X) function returns the "type" of the outermost element
+of X.  The json_type(X,P) function returns the "type" of the element
+in X that is selected by path P.  The "type" returned by json_type() is
+on of the following an SQL text values:
+'null', 'true', 'false', 'integer', 'real', 'text', 'array', or 'object'.
+If the path P in json_type(X,P) selects a element that does not exist
+in X, then this function returns NULL.
+
+<p>The json_type() function throws an error if any of its arguments are
+not well-formed or is a BLOB.
+
+<p>Examples:
+
+<tcl>
+jexample \
+  {json_type('{"a":[2,3.5,true,false,null,"x"]}')} 'object' \
+  {json_type('{"a":[2,3.5,true,false,null,"x"]}','$')} 'object' \
+  {json_type('{"a":[2,3.5,true,false,null,"x"]}','$.a')} 'array' \
+  {json_type('{"a":[2,3.5,true,false,null,"x"]}','$.a[0]')} 'integer' \
+  {json_type('{"a":[2,3.5,true,false,null,"x"]}','$.a[1]')} 'real' \
+  {json_type('{"a":[2,3.5,true,false,null,"x"]}','$.a[2]')} 'true' \
+  {json_type('{"a":[2,3.5,true,false,null,"x"]}','$.a[3]')} 'false' \
+  {json_type('{"a":[2,3.5,true,false,null,"x"]}','$.a[4]')} 'null' \
+  {json_type('{"a":[2,3.5,true,false,null,"x"]}','$.a[5]')} 'text' \
+  {json_type('{"a":[2,3.5,true,false,null,"x"]}','$.a[6]')} NULL
+</tcl>
+
+<tcl>hd_fragment jvalid {json_valid SQL function} {json_valid}</tcl>
+<h2>The json_valid() function</h2>
+
+<p>The json_valid(X) function return 1 if the argument X is well-formed
+JSON and return 0 if the argument X is not well-formed JSON.
+
+<p>Examples:
+
+<tcl>
+jexample \
+  {json_valid('{"x":35}')} 1 \
+  "json_valid('\173\"x\":35')" 0
+</tcl>
+
+<tcl>hd_fragment jquote {json_quote SQL function} {json_quote}</tcl>
+<h2>The json_quote() function</h2>
+
+<p>The json_quote(X) function converts the SQL value X (a number or a
+string) into its corresponding JSON representation. 
+
+<p>Examples:
+
+<tcl>
+jexample \
+  {json_quote(3.14159)} 3.14159 \
+  "json_quote('verdant')" \"verdant\"
+</tcl>
+
+<tcl>
+hd_fragment jgrouparray {json_group_array SQL function} \
+   {json_group_array}
+hd_fragment jgroupobject {json_group_object SQL function} \
+   {json_group_object}
+</tcl>
+<h2>The json_group_array() and json_group_object()
+aggregate SQL functions</h2>
+
+<p>The json_group_array(X) function is an 
+[Aggregate Functions|aggregate SQL function] that returns a JSON array
+comprised of all X values in the aggregation.
+Similarly, the json_group_object(NAME,VALUE) function returns a JSON object
+comprised of all NAME/VALUE pairs in the aggregation.
+
+
+<tcl>hd_fragment jeach {json_each table-valued function} {json_each}</tcl>
+<tcl>hd_fragment jtree {json_tree table-valued function} {json_tree}</tcl>
+<h2>The json_each() and json_tree() table-valued functions</h2>
+
+<p>The json_each(X) and json_tree(X) [table-valued functions] walk the
+JSON value provided as their first argument and return one row for each
+element.  The json_each(X) function only walks the immediate children
+of the top-level array or object or 
+or just the top-level element itself if the top-level
+element is a primitive value.
+The json_tree(X) function recursively walks through the
+JSON substructure starting with the top-level element.  
+
+<p>The json_each(X,P) and json_tree(X,P) functions work just like
+their one-argument counterparts except that they treat the element
+identified by path P as the top-level element.
+
+<p>The schema for the table returned by json_each() and json_tree() is
+as follows:
+
+<blockquote><pre>
+CREATE TABLE json_tree(
+    key ANY,             -- key for current element relative to its parent
+    value ANY,           -- value for the current element
+    type TEXT,           -- 'object','array','string','integer', etc.
+    atom ANY,            -- value for primitive types, null for array & object
+    id INTEGER           -- integer ID for this element
+    parent INTEGER,      -- integer ID for the parent of this element
+    fullkey TEXT,        -- full path describing the current element
+    path TEXT,           -- path to the container of the current row
+    json JSON HIDDEN,    -- 1st input parameter: the raw JSON
+    root TEXT HIDDEN     -- 2nd input parameter: the PATH at which to start
+);
+</pre></blockquote>
+
+<p>
+The "key" column is the integer array index for elements of a JSON array 
+and the text label for elements of a JSON object.  The key column is
+NULL in all other cases.
+
+<p>
+The "atom" column is the SQL value corresponding to primitive elements - 
+elements other than JSON arrays and objects.  The "atom" column is NULL
+for a JSON array or object.  The "value" column is the same as the
+"atom" column for primitive JSON elements but takes on the text JSON value
+for arrays and objects.
+
+<p>
+The "type" column is an SQL text value taken from ('null', 'true', 'false',
+'integer', 'real', 'text', 'array', 'object') according to the type of
+the current JSON element.
+
+<p>
+The "id" column is an integer that identifies a specific JSON element
+within the complete JSON string.  The "id" integer is an internal housekeeping
+number, the computation of which might change in future releases.  The
+only guarantee is that the "id" column will be different for every row.
+
+<p>
+The "parent" column is always NULL for json_each().
+For json_tree(),
+the "parent" column is the "id" integer for the parent of the current
+element, or NULL for the top-level JSON element or the element identified
+by the root path in the second argument.
+
+<p>
+The "fullkey" column is a text path that uniquely identifies the current
+row element within the original JSON string.  The complete key to the
+true top-level element is returned even if an alternative starting point
+is provided by the "root" argument.
+
+<p>
+The "path" column is the path to the array or object container the holds 
+the current row, or the path to the current row in the case where the 
+iteration starts on a primitive type and thus only provides a single
+row of output.
+
+<h3>Examples using json_each() and json_tree()</h3>
+
+<p>Suppose the table "CREATE TABLE user(name,phone)" stores zero or
+more phone numbers as a JSON array object in the user.phone field.
+To find all users who have any phone number with a 704 area code:
+
+<blockquote><pre>
+SELECT DISTINCT user.name
+  FROM user, json_each(user.phone)
+ WHERE json_each.value LIKE '704-%';
+</pre></blockquote>
+
+<p>Now suppose the user.phone field contains plain text if the user
+has only a single phone number and a JSON array if the user has multiple
+phone numbers.  The same question is posed: "Which users have a phone number
+in the 704 area code?"  But now the json_each() function can only be called
+for those users that have two or more phone numbers since json_each()
+requires well-formed JSON as its first argument:
+
+<blockquote><pre>
+SELECT name FROM user WHERE phone LIKE '704-%'
+UNION
+SELECT user.name
+  FROM user, json_each(user.phone)
+ WHERE json_valid(user.phone)
+   AND json_each.value LIKE '704-%';
+</pre></blockquote>
+
+<p>Consider a different database with "CREATE TABLE big(json JSON)".
+To see a complete line-by-line decomposition of the data:
+
+<blockquote><pre>
+SELECT big.rowid, fullkey, value
+  FROM big, json_tree(big.json)
+ WHERE json_tree.type NOT IN ('object','array');
+</pre></blockquote>
+
+<p>In the previous, the "type NOT IN ('object','array')" term of the
+WHERE clause suppresses containers and only lets through leaf elements.
+The same effect could be achieved this way:
+
+<blockquote><pre>
+SELECT big.rowid, fullkey, atom
+  FROM big, json_tree(big.json)
+ WHERE atom IS NOT NULL;
+</pre></blockquote>
+
+<p>Suppose each entry in the BIG table is a JSON object 
+with a '$.id' field that is a unique identifier
+and a '$.partlist' field that can be a deeply nested object.
+You want to find the id of every entry that contains one
+or more references to uuid '6fa5181e-5721-11e5-a04e-57f3d7b32808' anywhere
+in its '$.partlist'.
+
+<blockquote><pre>
+SELECT DISTINCT json_extract(big.json,'$.id')
+  FROM big, json_tree(big.json, '$.partlist')
+ WHERE json_tree.key='uuid'
+   AND json_tree.value='6fa5181e-5721-11e5-a04e-57f3d7b32808';
+</pre></blockquote>

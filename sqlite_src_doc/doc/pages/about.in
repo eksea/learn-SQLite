@@ -1,0 +1,112 @@
+<title>About SQLite</title>
+
+<h1 align=center>About SQLite</h1>
+
+<div class="rightsidebar border2px">
+<h4 align="center">Executive Summary</h4>
+<ul>
+<li> [Full-featured SQL]
+<li> <a href='mostdeployed.html'>Billions and billions of deployments</a>
+<li> <a href='onefile.html'>Single-file database</a>
+<li> <a href='copyright.html'>Public domain source code</a>
+<li> All source code in one file (<a href='amalgamation.html'>sqlite3.c</a>)
+<li> <a href='footprint.html'>Small footprint</a>
+<li> Max DB size: <a href='limits.html'>140 terabytes</a>
+     (2<sup><small>47</small></sup> bytes)
+<li> Max row size: <a href='limits.html'>1 gigabyte</a>
+<li> <a href='fasterthanfs.html'>Faster than direct file I/O</a>
+<li> <a href='testing.html'>Aviation-grade quality and testing</a>
+<li> <a href='zeroconf.html'>Zero-configuration</a>
+<li> <a href='transactional.html'>ACID transactions, even after power loss</a>
+<li> <a href='fileformat.html'>Stable, enduring file format</a>
+<li> <a href='doclist.html'>Extensive, detailed documentation</a>
+<li> <a href='lts.html'>Long-term support</a>
+</div>
+
+<p>SQLite is an in-process library that implements a
+<a href="selfcontained.html">self-contained</a>, 
+<a href="serverless.html">serverless</a>,
+<a href="zeroconf.html">zero-configuration</a>,
+<a href="transactional.html">transactional</a>
+SQL database engine.
+The code for SQLite is in the
+<a href="copyright.html">public domain</a> and is thus free for
+use for any purpose, commercial or private.
+SQLite is the [most widely deployed] database in the world
+with more applications than we can
+count, including several <a href="famous.html">high-profile projects.</a></p>
+
+<p>SQLite is an embedded SQL database engine.
+Unlike most other SQL databases, SQLite does not have a separate
+server process.  SQLite reads and writes directly to ordinary disk
+files.  A complete SQL database with multiple tables, indices,
+triggers, and views, is contained in a single disk file.
+The database [file format] is cross-platform - you can freely copy a database
+between 32-bit and 64-bit systems or between 
+[http://en.wikipedia.org/wiki/Endianness | big-endian] and
+[http://en.wikipedia.org/wiki/Endianness | little-endian]
+architectures.  These features make SQLite a popular choice as
+an [Application File Format].
+Think of SQLite not as a replacement for 
+[http://www.oracle.com/database/index.html|Oracle] but
+as a replacement for [http://man.he.net/man3/fopen|fopen()]</p>
+
+<p>SQLite is a compact library.
+With all features enabled, the [library size] can be less than 500KiB,
+depending on the target platform and compiler optimization settings.
+(64-bit code is larger.  And some compiler optimizations
+such as aggressive function inlining and loop unrolling can cause the
+object code to be much larger.)  If optional features are omitted, the
+size of the SQLite library can be reduced below 300KiB.  SQLite can also
+be made to run in minimal stack space (4KiB) and
+very little heap (100KiB), making SQLite a popular database engine 
+choice on memory constrained gadgets such as cellphones, PDAs, and MP3 players.
+There is a tradeoff between memory usage and speed.  
+SQLite generally runs faster the more memory
+you give it.  Nevertheless, performance is usually quite good even
+in low-memory environments.  Depending on how it is used, SQLite be
+[faster than the filesystem|faster than direct filesystem I/O].</p>
+
+<p>SQLite is 
+<a href="testing.html">very carefully tested</a> prior to every
+release and has a reputation for being very reliable.
+Most of the SQLite source code is devoted purely to testing and
+verification.  An automated test suite runs millions and millions of
+test cases involving hundreds of millions of individual SQL statements
+and achieves [test coverage | 100% branch test coverage].  
+SQLite responds gracefully to memory
+allocation failures and disk I/O errors.  Transactions are
+[http://en.wikipedia.org/wiki/ACID|ACID]
+even if interrupted by system crashes or power failures.  
+All of this is verified by
+the automated tests using special test harnesses which simulate 
+system failures.
+Of course, even with all this testing, there are still bugs.
+But unlike some similar projects (especially commercial competitors)
+SQLite is open and honest about all bugs and provides
+<a href="http://www.sqlite.org/src/rptview?rn=1">bugs lists</a> and
+minute-by-minute <a href="http://www.sqlite.org/src/timeline">
+chronologies</a> of code changes.</p>
+
+<p>The SQLite code base is supported by an
+<a href="crew.html">international team</a> of developers who work on
+SQLite full-time.
+The developers continue to expand the capabilities of SQLite
+and enhance its reliability and performance while maintaining
+backwards compatibility with the 
+<a href="c3ref/intro.html">published interface spec</a>,
+<a href="lang.html">SQL syntax</a>, and database [file format].
+The source code is absolutely free to anybody who wants it,
+but [professional support] is also available.</p>
+
+<p>The SQLite project was started on 
+[https://www.sqlite.org/src/timeline?c=2000-05-29+14:26:00|2000-05-09].
+The future is always hard to predict, but the intent of the developers
+is to support SQLite through the year 2050.  Design decisions are made
+with that objective in mind.</p>
+
+<p>We the developers hope that you find SQLite useful and we
+entreat you to use it well: to make good and beautiful products that
+are fast, reliable, and simple to use.  Seek forgiveness for yourself
+as you forgive others.  And just as you have received SQLite for free,
+so also freely give, paying the debt forward.</p>

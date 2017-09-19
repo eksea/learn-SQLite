@@ -1,0 +1,116 @@
+<title>Hints for Debugging SQLite</title>
+<tcl>hd_keywords dbghints {debugging hints}</tcl>
+<h1 align='center'>Debugging Hints</h1>
+
+<p>
+The following is a random assortment of techniques used by the
+SQLite developers to trace, examine, and understand the behavior of the
+core SQLite library.
+
+<p>
+These techniques are designed to aid in understanding the
+core SQLite library itself, not applications that merely use SQLite.
+
+<ol>
+<li>
+<p><b>Use the ".eqp full" option on the [command-line shell]</b>
+
+<p>When you have a SQL script that you are debugging or trying
+to understand, it is often useful to run it in the [command-line shell]
+with the ".eqp full" setting.  When ".eqp" is set to FULL, the shell
+automatically shows the [EXPLAIN] and [EXPLAIN QUERY PLAN] output for
+each command prior to actually running that command.
+
+<p>For added readability, also set ".echo on" so that the output contains
+the original SQL text.
+</li>
+
+<li>
+<p><b>Use compile-time options to enable debugging features.</b>
+
+<p>Suggested compile-time options include:
+<ul>
+<li>[-DSQLITE_DEBUG]
+<li>[-DSQLITE_ENABLE_EXPLAIN_COMMENTS]
+<li>-DSQLITE_ENABLE_SELECTTRACE
+<li>-DSQLITE_ENABLE_WHERETRACE
+</ul>
+</li>
+
+<p>The SQLITE_ENABLE_SELECTTRACE and SQLITE_ENABLE_WHERETRACE options
+are not documented in [compile-time options] document because they
+are not officially supported.  What they do is activate the
+".selecttrace" and ".wheretrace" dot-commands in the command-line
+shell, which provide low-level tracing output for the logic that
+generates code for SELECT statements and WHERE clauses, respectively.
+
+<li>
+<p><b>Call sqlite3TreeViewExpr() and similar from the debugger.</b>
+
+<p>When compiled with [SQLITE_DEBUG], SQLite includes routines that will
+print out various internal parse tree structures as ASCII-art graphs.
+This can be very useful in a debugging in order to understand the variables
+that SQLite is working with.
+
+<p>For example, in gdb, to see the complete hierarchy of an Expr node
+(that is to say, the Expr node and all of its children), given a pointer
+"pExpr" to that node, type:
+
+<codeblock>
+print sqlite3TreeViewExpr(0, pExpr, 0)
+</codeblock>
+
+<p>The two "0" parameters do server a purpose in some contexts, but for
+using these routine to print a parse tree as ASCII-art on the terminal,
+they should both be "0".
+
+<p>Other similar tree-display routines include:
+<ul>
+<li>sqlite3TreeViewSelect(0, pSelect, 0)
+<li>sqlite3TreeViewExprList(0, pList, 0, 0)
+</ul>
+</li>
+
+<li>
+<p><b>Breakpoints on test_addoptrace</b>
+
+<p>When debugging the [bytecode] generator, it is often useful to know
+where a particular opcode is being generated.  To find this easily,
+run the script in a debugger.  Set a breakpoint on the "test_addoptrace"
+routine.  Then run the "PRAGMA vdbe_addoptrace=ON;" followed by the
+SQL statement in question.  Each opcode will be displayed as it is
+appended to the VDBE program, and the breakpoint will fire immediately
+thereafter.  Step until reaching the opcode and question then look backwards
+in the stack to see where and how it was generated.
+
+<p>This only works when compiled with [SQLITE_DEBUG].
+</li>
+
+<li>
+<p><b>Using the ".selecttrace" and ".wheretrace" shell commands</b>
+
+<p>When the command-line shell and the core SQLite library are
+both compiled with [SQLITE_DEBUG] and
+SQLITE_ENABLE_SELECTTRACE and SQLITE_ENABLE_WHERETRACE, then the
+shell has two commands used to turn on debugging facilities for the
+most intricate parts of the code generator - the logic dealing with
+SELECT statements and WHERE clauses, respectively.
+The ".selecttrace" and ".wheretrace" commands each take a numeric
+argument which can be expressed in hexadecimal.  Each bit turns on
+various parts of debugging.  Values of "0xfff" and "0xff" are commonly
+used.  Use an argument of "0" to turn all tracing output back off.
+</li>
+
+<li>
+<p><b>Disable the [lookaside memory allocator]</b>
+
+<p>When looking for memory allocation problems (memory leaks, use-after-free
+errors, buffer overflows, etc) it is sometimes useful to disable the
+[lookaside memory allocator] then run the test under valgrind.
+The lookaside memory allocator can 
+be disabled at start-time using the [SQLITE_CONFIG_LOOKASIDE]
+interface.  The [command-line shell] will use that interface to
+disable lookaside if it is started with the "--lookaside 0 0"
+command line option.
+</li>
+</ol>

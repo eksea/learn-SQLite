@@ -1,0 +1,597 @@
+<title>C/C++ Interface For SQLite Version 3</title>
+<alt-title>C/C++ API Reference</alt-title>
+<tcl>
+set in [open sqlite3.h] 
+set title {}       ;# title of a section of interface definition
+set type {}        ;# one of: constant datatype function
+set body {}        ;# human-readable description
+set code {}        ;# C code of the definition
+set phase 0        ;# Phase used by the parser 
+set content {}     ;# List of records, one record per definition
+set dcnt 0         ;# Number of individual declarations
+set lineno 0       ;# input file line number
+set intab 0        ;# In a covenents or limitations table
+set inrow 0        ;# In a row of a table
+set rowbody {}     ;# Content of a row
+set rowtag {}      ;# 
+set exflag 0       ;# True for experimental interfaces 
+set obsflag 0      ;# True for obsolete interfaces
+unset -nocomplain keyword
+unset -nocomplain supported   ;# 0: stable.  1: experimental  2: deprecated
+unset -nocomplain fcons
+unset -nocomplain fdest
+unset -nocomplain fmeth
+
+# End a table row or the complete table.
+#
+proc endrow {} {
+  global inrow body rowbody rowtag keyword dflt_parent
+  if {$inrow} {
+    set rowbody [string trim $rowbody]
+    append body $rowbody</td></tr>\n
+    if {$dflt_parent!=""} {
+      append rowbody " <$dflt_parent>"
+    }
+    #hd_requirement $rowtag $rowbody
+    #set keyword($rowtag) 1
+    set inrow 0
+    set rowbody {}
+    set rowtag {}
+  }
+}
+proc endtab {} {
+  global intab body
+  endrow
+  if {$intab} {
+    append body "</table>\n"
+    set intab 0
+  }
+}
+proc starttab {} {
+  global intab body
+  endtab
+  append body {<table border="0" cellpadding="5" cellspacing="0">}
+  append body \n
+  set intab 1
+}
+
+# Read sqlite3.c line by line and extract interface definition
+# information (found in what was originally sqlite3.h).
+#
+while {![eof $in]} {
+  set line [gets $in]
+  regsub -all {SQLITE_(APICALL|CALLBACK|SYSAPI|CDECL) } $line {} line
+  if {[regexp {^/\*+ Begin file sqlite3session} $line]} {
+    while {![regexp {^/\*+ End of sqlite3session } $line]  && ![eof $in]} {
+      set line [gets $in]
+      incr lineno
+    }
+    continue
+  }
+  incr lineno
+  if {$phase==0} {
+    # Looking for the CAPI3REF: keyword.  This marks the beginning of
+    # an interface definition.  When the CAPI3REF keywords is seen, 
+    # record the interface title and then switch to "phase 1".
+    #
+    if {[regexp {^\*\* CAPI3REF: +(.*)} $line all tx]} {
+      set title $tx
+      set dflt_parent {}
+      regexp {<([AHLS]\d\d\d\d\d)>} $title all dflt_parent
+      set title_lineno $lineno
+      set method {}
+      set destructor {}
+      set constructor {}
+      set phase 1
+    }
+  } elseif {$phase==1} {
+    if {[string range $line 0 1]=="**"} {
+      # Record all lines of column following the CAPI3REF keyword as the
+      # description of the interface.  Except, look for special keywords
+      # CATEGORY, KEYWORDS, INVARIANTS, and ASSUMPTIONS and process them
+      # separately.
+      #
+      set lx [string trim [string range $line 3 end]]
+      if {[regexp {^CATEGORY: +([a-z]*)} $lx all cx]} {
+        set type $cx
+      } elseif {[regexp {^KEYWORDS: +(.*)} $lx all kx]} {
+        foreach k $kx {
+          set keyword($k) 1
+        }
+      } elseif {[regexp {^EXPERIMENTAL} $lx]} {
+        set exflag 1
+      } elseif {[regexp {^DEPRECATED} $lx]} {
+        set obsflag 1
+      } elseif {[regexp {^CONSTRUCTOR: +(.*)} $lx all nm]} {
+        set constructor $nm
+      } elseif {[regexp {^METHOD: +(.*)} $lx all nm]} {
+        set method $nm
+      } elseif {[regexp {^DESTRUCTOR: +(.*)} $lx all nm]} {
+        set destructor $nm
+      } elseif {[regexp {^FRAGMENT: +(.*)} $lx all kx]} {
+        set fragname [lindex $kx 0]
+        append body "<a name=\"$fragname\"></a>\n"
+        
+      } else {
+        append body $lx\n
+      }
+    } elseif {[string range $line 0 1]=="*/"} {
+      # When we reach the end of the block comment that contained the
+      # CAPI3REF keyword, that ends the description.  Switch to phase 3
+      # in order to begin picking up the interface definition.
+      #
+      set phase 2
+    }
+  } elseif {$phase==2} {
+    # Reading in an interface definition.  Stop reading at the first blank
+    # line.
+    #
+    # Ignore API tags.
+    regsub {^SQLITE_DEPRECATED } $line {} line
+    regsub {^SQLITE_EXPERIMENTAL } $line {} line
+    regsub {^SQLITE_API } $line {} line
+    regsub {SQLITE_STDCALL } $line {} line
+    regsub {SQLITE_CDECL } $line {} line
+    if {$line==""} {
+      set reqtag {}
+      set reqdf {}
+      if {[regexp {\{([AHLS]\d\d\d\d\d)\}} $title all reqtag]} {
+        regsub { *\{[AHLS]\d\d\d\d\d\}} $title {} title
+        while {[regexp {<([AHLS]\d\d\d\d\d)>} $title all df]} {
+          append reqdf <$df>
+          regsub { *<[AHLS]\d\d\d\d\d>} $title {} title
+        }
+        # set keyword($reqtag) 1
+      }
+      set kwlist [lsort [array names keyword]]
+      unset -nocomplain keyword
+      if {$exflag} {
+        foreach kw $kwlist {set supported($kw) 1}
+      } elseif {$obsflag} {
+        foreach kw $kwlist {set supported($kw) 2}
+      } else {
+        foreach kw $kwlist {set supported($kw) 0}
+      }
+      set exflag 0
+      set obsflag 0
+      set key $type:$kwlist
+      regsub -all { *\{[\w.]+\}} $body {} body
+      set body [string map \
+          {<todo> {<font color="red">(TODO: } </todo> )</font>} $body]
+      set code [string map {& &amp; < &lt; > &gt;} $code]
+      lappend content [list $key $title $type $kwlist $body $code]
+      set title {}
+      set keywords {}
+      set type {}
+      set body {}
+      set code {}
+      set phase 0
+      set dcnt 0
+      set constructor {}
+      set destructor {}
+      set method {}
+    } else {
+      if {[regexp {^#define (SQLITE_[A-Z0-9_]+)} $line all kx]} {
+        set type constant
+        set keyword($kx) 1
+        incr dcnt
+      } elseif {[regexp {^typedef .*(sqlite[0-9a-zA-Z_]+);} $line all kx]} {
+        set type datatype
+        set keyword($kx) 1
+        incr dcnt
+      } elseif {[regexp {^struct (sqlite3_[0-9a-z_]+)} $line all kx]} {
+        set type datatype
+        set keyword($kx) 1
+        incr dcnt
+      } elseif {[regexp {^[a-z].*[ *](sqlite3_[a-z0-9_]+)\(} $line all kx]} {
+        set type function
+        set keyword($kx) 1
+        if {$constructor ne ""} {lappend fmeth(c:$constructor) $kx}
+        if {$destructor ne ""}  {lappend fmeth(d:$destructor) $kx}
+        if {$method ne ""}      {lappend fmeth(m:$method) $kx}
+        incr dcnt
+      } elseif {[regexp {^[a-z].*[ *](sqlite3_[a-z0-9_]+);} $line all kx]} {
+        set type datatype
+        set keyword($kx) 1
+        incr dcnt
+      } elseif {[regexp {^SQLITE_EXTERN .*(sqlite[0-9a-z_]+);} $line all kx]} {
+        set type datatype
+        set keyword($kx) 1
+        incr dcnt
+      }
+      append code $line\n
+    }
+  }
+}
+
+# Convert a tag name into the filename used for the
+# multi-file version.
+#
+# Constants begin with SQLITE_.  The names are converted
+# to lower case and prefixed with "c_".  If we did not
+# do this, then the names "SQLITE_BLOB" and "sqlite3_blob"
+# would collide.
+#
+proc convert_keyword_to_filename {oldname} {
+  regsub {_FILE} $oldname {_stdiofile} oldname
+  set oldname [string tolower $oldname]
+  regsub {^sqlite_} $oldname {c_} oldname
+  regsub {^sqlite3_} $oldname {} oldname
+  regsub { } $oldname _ name
+  return $name.html
+}
+
+hd_open_aux c3ref/intro.html
+hd_header Introduction
+hd_enable_main 0
+hd_keywords *capi3ref {C-language Interface}
+</tcl>
+
+<h1 align="center">
+C-language Interface Specification for SQLite
+</h1>
+
+<p>These pages are intended to be precise and detailed specification.
+For a tutorial introduction, see instead:
+<ul>
+<li>[quickstart | SQLite In 3 Minutes Or Less] and/or
+<li>the [cintro | Introduction To The SQLite C/C++ Interface].
+</ul>
+This same content is also available as a
+<a href="../capi3ref.html">single large HTML file</a>.
+</p>
+
+<p>The SQLite interface elements can be grouped into three categories:</p>
+
+<ol>
+<li><p><a href="objlist.html"><b>List Of Objects.</b></a>
+    This is a list of all abstract objects and datatypes used by the
+    SQLite library.  There are couple dozen objects in total, but
+    the two most important objects are:
+    A database connection object [sqlite3], and the
+    prepared statement object [sqlite3_stmt].</p></li>
+
+<li><p><a href="constlist.html"><b>List Of Constants.</b></a>
+    This is a list of numeric constants used by SQLite and represented by
+    #defines in the sqlite3.h header file.  These constants
+    are things such as numeric [result codes] from
+    various interfaces (ex: [SQLITE_OK]) or flags passed
+    into functions to control behavior
+    (ex: [SQLITE_OPEN_READONLY]).</p></li>
+
+<li><p><a href="funclist.html"><b>List Of Functions.</b></a>
+    This is a list of all functions and methods operating on the 
+    <a href="objlist.html">objects</a> and using and/or
+    returning <a href="constlist.html">constants</a>.  There
+    are many functions, but most applications only use a handful.
+    </p></li>
+</ol>
+
+<tcl>
+hd_close_aux
+hd_enable_main 1
+</tcl>
+
+<h1 align="center">
+C-language Interface Specification for SQLite
+</h1>
+
+<p>This page is intended to be a precise and detailed specification.
+For a tutorial introductions, see instead:
+<ul>
+<li>[quickstart | SQLite In 3 Minutes Or Less] and/or
+<li>the [cintro | Introduction To The SQLite C/C++ Interface].
+</ul>
+This same content is also available split out into 
+<a href="c3ref/intro.html">lots of small pages</a>.</p>
+
+<hr>
+
+<tcl>
+# Find the preferred keyword for a page given a list of
+# acceptable keywords.
+#
+proc preferred_keyword {keyword_list} {
+  set kw {}
+  foreach kw $keyword_list {
+    if {[regexp -nocase {^sqlite} $kw]} break
+  }
+  return $kw
+}
+
+# Do a page explaining what "experimental" means.
+hd_open_aux c3ref/experimental.html
+hd_header {Experimental Interfaces}
+hd_enable_main 0
+hd_puts {<a href="intro.html"><h2>SQLite C Interface</h2></a>}
+hd_enable_main 1
+hd_keywords experimental deprecated
+</tcl>
+
+<h2>Experimental And Deprecated Interfaces</h2>
+
+<p>SQLite interfaces can be subdivided into three categories:</p>
+
+<ol>
+<li>Stable</li>
+<li>Experimental</li>
+<li>Deprecated</li>
+</ol>
+
+<p>Stable interfaces will be maintained indefinitely in a backwards
+compatible way.  An application that uses only stable interfaces
+should always be able to relink against a newer version of SQLite
+without any changes.</p>
+
+<p>Experimental interfaces are subject to change.  
+Applications that use experimental interfaces
+may need to be modified when upgrading to a newer SQLite release, though
+this is rare.
+When new interfaces are added to SQLite, they generally begin
+as experimental interfaces.  After an interface has been in use for
+a while and the developers are confident that the design of the interface
+is sound and worthy of long-term support, the interface is marked
+as stable.</p>
+
+<p>Deprecated interfaces have been superceded by better methods of
+accomplishing the same thing and should be avoided in new applications.
+Deprecated interfaces continue to be supported for the sake of
+backwards compatibility.  At some point in the future, it is possible
+that deprecated interfaces may be removed.</p>
+
+<p>Key points:</p>
+
+<ul>
+<li>Experimental interfaces are subject to change and/or removal 
+at any time.</li>
+
+<li>Deprecated interfaces should not be used in new code and might
+be removed in some future release.</li>
+</ul>
+
+<tcl>
+hd_close_aux
+hd_puts {<hr>}
+
+# The toc.db database file in the root directory of the document tree
+# contains information about documentation for all C-API elements.  This
+# database is used by third-party wrappers (ex: python) when building
+# their own documentation, in order to provide links back to the
+# canonical SQLite documentation.  Changing this table will break the
+# build on those third-party systems.
+#
+sqlite3 dbtoc doc/toc.db
+dbtoc eval {
+BEGIN;
+DROP TABLE IF EXISTS toc;
+CREATE TABLE toc(
+  name TEXT,  -- Name of interface
+  type TEXT,  -- 'object', 'constant', or 'function'
+  status INT, -- 0=normal, 1=experimental, 2=deprecated
+  title TEXT, -- Documentation page title
+  uri TEXT    -- Path to the documentation
+);
+}
+proc convert_keyword_to_uri {key} {
+  global glink hd
+  if {[info exists glink($key)]} {
+    set x $hd(rootpath-aux)$glink($key)
+    regsub {^\.\./} $x {} x
+    return $x
+  } else {
+    return unknown?key=$key
+  }
+}
+
+
+# Do a table of contents for objects
+#
+set objlist {}
+foreach c $content {
+  foreach {key title type keywords body code} $c break
+  if {$type!="datatype"} continue
+  set keywords [lsort -nocase $keywords]
+  set k [preferred_keyword $keywords]
+  set s $supported($k)
+  foreach kw $keywords {
+    if {[regexp {^sqlite} $kw]} {
+      lappend objlist [list $k $kw $s]
+      set uri [convert_keyword_to_uri $k]
+      dbtoc eval {INSERT INTO toc(name,type,status,title,uri)
+                   VALUES($kw,'object',$s,$title,$uri)}
+    }
+  }
+}
+hd_open_aux c3ref/objlist.html
+hd_header {List Of SQLite Objects}
+hd_enable_main 0
+hd_putsnl {<a href="intro.html"><h2>SQLite C Interface</h2></a>}
+hd_enable_main 1
+</tcl>
+<h2>List Of Objects:</h2>
+<tcl>
+hd_list_of_links {} 280 [lsort -nocase $objlist]
+hd_enable_main 0
+hd_putsnl {<p>Other lists:
+<a href="constlist.html">Constants</a> and
+<a href="funclist.html">Functions</a> and
+<a href="../rescode.html">Result Codes</a>.}
+hd_close_aux
+hd_enable_main 1
+hd_putsnl {<hr>}
+
+# Do a table of contents for constants
+#
+set clist {}
+foreach c $content {
+  foreach {key title type keywords body code} $c break
+  if {$type!="constant"} continue
+  set keywords [lsort $keywords]
+  set k [preferred_keyword $keywords]
+  set s $supported($k)
+  foreach kw $keywords {
+    if {[regexp {^SQLITE_} $kw] && ![regexp {[^A-Z_0-9]} $kw]} {
+      lappend clist [list $kw $kw $s]
+      set uri [convert_keyword_to_uri $kw]
+      dbtoc eval {INSERT INTO toc(name,type,status,title,uri)
+                   VALUES($kw,'constant',$s,$title,$uri)}
+    }
+  }
+}
+hd_open_aux c3ref/constlist.html
+hd_header {List Of SQLite Constants}
+hd_enable_main 0
+hd_putsnl {<a href="intro.html"><h2>SQLite C Interface</h2></a>}
+hd_enable_main 1
+</tcl>
+<h2>List Of Constants:</h2>
+<p>Also available: [error codes|list of error codes]</p>
+<tcl>
+set clist [lsort -index 1 $clist]
+hd_list_of_links {} 400 $clist
+hd_enable_main 0
+hd_putsnl {<p>Other lists:
+<a href="objlist.html">Objects</a> and
+<a href="funclist.html">Functions</a> and
+<a href="../rescode.html">Result Codes</a>.</p>}
+hd_enable_main 1
+hd_close_aux
+hd_putsnl {<hr>}
+
+# Do a table of contents for functions
+#
+set funclist {}
+unset -nocomplain funccnts
+foreach c $content {
+  foreach {key title type keywords body code} $c break
+  if {$type!="function"} continue
+  set keywords [lsort $keywords]
+  set k [preferred_keyword $keywords]
+  set s $supported($k)
+  foreach kw $keywords {
+    if {[regexp {^sqlite} $kw]} {
+      lappend funclist [list $kw $kw $s]
+      set uri [convert_keyword_to_uri $kw]
+      incr funccnts($s)
+      dbtoc eval {INSERT INTO toc(name,type,status,title,uri)
+                   VALUES($kw,'function',$s,$title,$uri)}
+    }
+  }
+}
+#puts "content=[list $content]"
+#puts "supported=[list [array get supported]]"
+#puts "funccnts=[list [array get funccnts]]
+hd_open_aux c3ref/funclist.html
+hd_header {List Of SQLite Functions}
+hd_keywords *capi3ref_funclist {C-API function list}
+hd_enable_main 0
+hd_putsnl {<a href="intro.html"><h2>SQLite C Interface</h2></a>}
+hd_enable_main 1
+</tcl>
+<h2>List Of Functions:</h2>
+<p>Note: Functions marked with "<small><i>(exp)</i></small>"
+are [experimental] and functions whose names are
+<s>struck through</s> are [deprecated].</p>
+<tcl>
+hd_putsnl "<!-- number of functions: $funccnts(0) -->"
+hd_putsnl "<!-- number of deprecated functions: $funccnts(2) -->"
+hd_putsnl "<!-- number of experimental functions: $funccnts(1) -->"
+set funclist [lsort -index 1 $funclist]
+hd_list_of_links {} 315 $funclist
+hd_enable_main 0
+hd_putsnl {<p>Other lists:
+<a href="constlist.html">Constants</a> and
+<a href="objlist.html">Objects</a> and
+<a href="../rescode.html">Result Codes</a></p>}
+hd_enable_main 1
+hd_close_aux
+hd_putsnl {<hr>}
+dbtoc eval COMMIT
+dbtoc close
+
+# Convert a fragment text label into a fragment name
+#
+proc hd_fragname {lbl} {
+  regsub -all {[^a-z0-9]} [string tolower $lbl] {} lbl2
+  return $lbl2
+}
+
+# Show constructors, destructors or methods for an object
+#
+proc show_methods_of_object {key label} {
+  global fmeth
+  if {![info exists fmeth($key)]} return
+  set lx [lsort $fmeth($key)]
+  set n [llength $lx]
+  if {$n==0} return
+  if {$n==1} {
+    hd_resolve "<p>$label: \[[lindex $lx 0]()\]</p>\n"
+    return
+  }
+  if {$n<=4} {
+    hd_puts "<p>${label}s:\n"
+    set sep { }
+    foreach x $lx {
+      hd_puts $sep
+      set sep ",\n"
+      hd_resolve \[${x}()\]
+    }
+    hd_puts "</p>\n"
+    return
+  }
+  set flst {}
+  foreach x $lx {
+    lappend flst [list $x $x 0]
+  }
+  hd_list_of_links "${label}s:" 350 $flst
+  hd_puts "</p>\n"
+}
+
+
+# Output all the records
+#
+foreach c [lsort $content] {
+  foreach {key title type keywords body code} $c break
+  set kw [preferred_keyword [lsort $keywords]]
+  if {$kw==""} {error "no keyword for $c"}
+  hd_fragment $kw
+  hd_open_aux c3ref/[convert_keyword_to_filename $kw]
+  hd_header $title
+  hd_enable_main 0
+  hd_putsnl "<!-- keywords: $keywords -->"
+  hd_putsnl {<div class=nosearch>}
+  hd_putsnl {<a href="intro.html"><h2>SQLite C Interface</h2></a>}
+  hd_enable_main 1
+  eval hd_keywords $keywords
+
+  hd_putsnl "<h2>$title</h2>"
+  hd_putsnl {</div>}
+  hd_putsnl "<blockquote><pre>"
+  hd_putsnl [string trim $code]
+  hd_putsnl "</pre></blockquote>"
+  if {$supported($kw)==1} {
+    hd_resolve {<p><b>Important:</b> This interface is [experimental] }
+    hd_resolve {and is subject to change without notice.</p>}
+  }
+  regsub -all "\n\n+" $body "</p>\n\n<p>" body
+  set body <p>$body</p>
+  while {[regexp {^(.*?)\[\[([^]]*)\]\](.*)$} $body all fore anchor aft]} {
+    hd_resolve $fore
+    set anchor [string trim $anchor]
+    hd_fragment [hd_fragname $anchor] $anchor
+    set body $aft
+  }
+  hd_resolve $body
+  show_methods_of_object c:$kw Constructor
+  show_methods_of_object d:$kw Destructor
+  show_methods_of_object m:$kw Method
+  hd_enable_main 0
+  hd_puts {<p>See also lists of
+  <a href="objlist.html">Objects</a>,
+  <a href="constlist.html">Constants</a>, and
+  <a href="funclist.html">Functions</a>.</p>}
+  hd_enable_main 1
+  hd_close_aux
+  hd_puts "<hr>"
+}
+</tcl>
